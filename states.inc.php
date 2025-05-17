@@ -60,36 +60,93 @@ $machinestates = [
         "type" => "manager",
         "action" => "stGameSetup",
         "transitions" => [
-            "" => ST_PLAYER_TURN
+            "" => ST_ASSIGN_CHARACTERS
         ]
     ),
 
-    ST_PLAYER_TURN => [
-        "name" => "playerTurn",
-        "description" => clienttranslate('${actplayer} must play a disc'),
-        "descriptionmyturn" => clienttranslate('${you} must play a disc'),
+    ST_ASSIGN_CHARACTERS => [
+        "name" => "assignCharacters",
+        "description" => clienttranslate('${actplayer} must choose a player character'),
+        "descriptionmyturn" => clienttranslate('${you} must choose a player character'),
         "type" => "activeplayer",
-        "args" => "argPlayerTurn",
+        "args" => "argAssignCharacters",
         "possibleactions" => [
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
-            "actPlayDisc"
+            "actSelectCharacter"
         ],
         "transitions" => [
-            "nextPlayer" => ST_NEXT_PLAYER,
-            "zombiePass" => ST_NEXT_PLAYER
+            "characterSelected" => ST_CHARACTER_CHECK
         ]
     ],
 
-    ST_NEXT_PLAYER => [
-        "name" => "nextPlayer",
+    ST_CHARACTER_CHECK => [
+        "name" => "assignmentCheck",
         "type" => "game",
-        "action" => "stNextPlayer",
-        "updateGameProgression" => true,
+        "action" => "stAssignmentCheck",
+        // "updateGameProgression" => true,
         "transitions" => [
-            "playerTurn" => ST_PLAYER_TURN,
-            "endGame" => ST_END_GAME
+            "charactersRemaining" => ST_ASSIGN_CHARACTERS,
+            "allPlayersChosen" => ST_DEAL_CARDS
         ]
     ],
+
+    ST_DEAL_CARDS => [
+        "name" => "dealCards",
+        "type" => "game",
+        "action" => "stDealCards",
+        "updateGameProgression" => true,
+        "transitions" => [
+            // "playerSelection" => ST_CHOOSE_CARDS,
+            "handsDealt" => ST_ACTIVATE_BIOME
+        ]
+    ],
+
+    ST_ACTIVATE_BIOME => [
+        "name" => "activateBiome",
+        "type" => "game",
+        "action" => "stActivateBiome",
+        "updateGameProgression" => true,
+        "transitions" => [
+            // "playerSelection" => ST_CHOOSE_BIOME,
+            "biomeActivated" => ST_BUILD_PHASE
+        ]
+    ],
+
+    ST_BUILD_PHASE => [
+        "name" => "buildPhase",
+        "type" => "multipleactiveplayer",
+        "action" => "stBuildPhase",
+        "args" => "argBuildPhase",
+        "description" => clienttranslate('Other players must build their Beast'),
+        "descriptionmyturn" => clienttranslate('${you} must build your Beast'),
+        "possibleactions" => [
+            // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
+            "actBuildCardFromHand",
+            // "actSwapCardsInBeast",
+            // "actFinalizeBeast"
+        ],
+        "transitions" => [
+            "beastsRemaining" => ST_BUILD_PHASE,
+            // "allBeastsBuilt" => ST_PLAYER_TURN,
+            // "zombiePass" => ST_NEXT_PLAYER
+        ]
+    ],
+
+    // ST_PLAYER_TURN => [
+    //     "name" => "playerTurn",
+    //     "description" => clienttranslate('${actplayer} must play a disc'),
+    //     "descriptionmyturn" => clienttranslate('${you} must play a disc'),
+    //     "type" => "activeplayer",
+    //     "args" => "argPlayerTurn",
+    //     "possibleactions" => [
+    //         // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
+    //         "actPlayDisc"
+    //     ],
+    //     "transitions" => [
+    //         "nextPlayer" => ST_NEXT_PLAYER,
+    //         "zombiePass" => ST_NEXT_PLAYER
+    //     ]
+    // ],
 
     // Final state. Please do not modify (and do not overload action/args methods).
     ST_END_GAME => [

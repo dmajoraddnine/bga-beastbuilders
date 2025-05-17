@@ -19,9 +19,12 @@ declare(strict_types=1);
 namespace Bga\Games\beastbuilders;
 
 require_once(APP_GAMEMODULE_PATH . "module/table/table.game.php");
+require_once(APP_GAMEMODULE_PATH . "module/common/deck.game.php");
+
 
 class Game extends \Table {
     // private static array $CARD_TYPES;
+    protected $animalCards;
 
     /**
      * Your global variables labels:
@@ -38,21 +41,26 @@ class Game extends \Table {
         parent::__construct();
 
         $this->initGameStateLabels([
-            "my_first_global_variable" => 10,
-            "my_second_global_variable" => 11,
-            "my_first_game_variant" => 100,
-            "my_second_game_variant" => 101,
+            // "characters" => []
+            // "my_second_global_variable" => 11,
+            // "my_first_game_variant" => 100,
+            // "my_second_game_variant" => 101,
         ]);        
 
+        $this->animalCards = self::getNew("module.common.deck");
+        $this->animalCards->init("card");
+
+        $this->dump('[constructor] $this->animalCards: ', $this->animalCards);
+
         // self::$CARD_TYPES = [
-        //     1 => [
-        //         "card_name" => clienttranslate('Troll'), // ...
-        //     ],
-        //     2 => [
-        //         "card_name" => clienttranslate('Goblin'), // ...
-        //     ],
-        //     // ...
-        // ];
+            //     1 => [
+            //         "card_name" => clienttranslate('Troll'), // ...
+            //     ],
+            //     2 => [
+            //         "card_name" => clienttranslate('Goblin'), // ...
+            //     ],
+            //     // ...
+            // ];
 
         /* example of notification decorator.
         // automatically complete notification args when needed
@@ -78,11 +86,11 @@ class Game extends \Table {
         // Set the colors of the players with HTML color code. The default below is red/green/blue/orange/brown. The
         // number of colors defined here must correspond to the maximum number of players allowed for the gams.
         $gameinfos = $this->getGameinfos();
-        // $default_colors = array('ffffff', '000000');
+        $default_colors = ["ff0000", "008000", "0000ff", "ffa500", "773300", "6a329f"];
 
-        $keys = array_keys($players);
-        shuffle($keys);
-        foreach ($keys as $player_id) {
+        $player_ids = array_keys($players);
+        shuffle($player_ids);
+        foreach ($player_ids as $player_id) {
             $player = $players[$player_id];
             $query_values[] = vsprintf("('%s', '%s', '%s', '%s', '%s')", [
                 $player_id,
@@ -108,32 +116,91 @@ class Game extends \Table {
         $this->reloadPlayersBasicInfos();
 
         // Init global values with their initial values.
-
-        // Dummy content.
         // $this->setGameStateInitialValue("my_first_global_variable", 0);
 
-        // Init the board
-        $sql = "INSERT INTO board (board_x,board_y,board_player) VALUES ";
-        $sql_values = array();
-        list($blackplayer_id, $whiteplayer_id) = array_keys($players);
-        for ($x = 1; $x <= 8; $x++) {
-            for ($y = 1; $y <= 8; $y++) {
-                $token_value = "NULL";
-                if (($x == 4 && $y == 4) || ($x == 5 && $y == 5)) {  // Initial positions of white player
-                    $token_value = "'$whiteplayer_id'";
-                } else if (($x == 4 && $y == 5) || ($x == 5 && $y == 4)) {  // Initial positions of black player
-                    $token_value = "'$blackplayer_id'";
-                }
+        // create the characters
+        // @TODO: READ THIS FROM JSON FILE
+        $character_sql = [];
+        $character_sql[] = "('Vortek Pulsaron', 'vortek', 'A sentient A.I. that illegally accessed the Beast Builders\' software system. After being discovered, it was invited to participate in the game, causing controversy.')";
+        $character_sql[] = "('Ko Minna', 'ko', 'Ko wants to be crystal clear about one thing: She\'s here to become the galaxy\'s next top Beast Builder, and there\'s nothing you can do about it!')";
+        $character_sql[] = "('Zychro', 'zychro', 'A sprightly upstart with a lot to prove. Some Beast Builders spend time studying strategy or \"the meta\", but Zychro plays from pure instinct.')";
+        $character_sql[] = "('E.T.H. 1', 'eth1', 'An automaton crafted by a tiny, cute architect who rides in its center. Together, they run millions of quantum calculations to decide the best possible move.')";
+        $character_sql[] = "('Ta\'aq', 'taaq', 'A deadly warrior with a mysterious background, who doesn\'t talk much. Rumor has it he\'s in exile from his home world.')";
+        $character_sql[] = "('Atomizer Gamma', 'atomizer', 'The third offspring in a line of talented yet ruthless Beast Builders. Atomizer\'s only priority is winning, making them effective in battle, but less so at making friends.')";
+        static::DbQuery(
+            sprintf(
+                "INSERT INTO `character` (`display_name`, `slug`, `flavor_text`) VALUES %s",
+                implode(",", $character_sql)
+            )
+        );
 
-                $sql_values[] = "('$x','$y',$token_value)";
-            }
+        // create the families
+        $family_sql = ["(1, 'Bird')", "(2, 'Fish')", "(3, 'Herptile')", "(4, 'Invertebrate')", "(5, 'Mammal')"];
+        static::DbQuery(
+            sprintf(
+                "INSERT INTO `family` (`id`, `display_name`) VALUES %s",
+                implode(",", $family_sql)
+            )
+        );
+
+        // create the biomes
+        // @TODO
+
+        // create the animals
+        // @TODO: READ THIS FROM JSON FILE
+        $animal_sql = array();
+        $animal_sql[] = "(53, 'Giant Panda', 5)";
+        $animal_sql[] = "(36, 'Poison Dart Frog', 3)";
+        static::DbQuery(
+            sprintf(
+                "INSERT INTO `animal` (`id`, `display_name`, `family_id`) VALUES %s",
+                implode(",", $animal_sql)
+            )
+        );
+
+        // $animal_deck_sql = array();
+        // $animal_deck_sql[] = "('animal', 53, 'deck', 1)";
+        // $animal_deck_sql[] = "('animal', 36, 'deck', 2)";
+        // static::DbQuery(
+        //     sprintf(
+        //         "INSERT INTO `card` (`card_type`, `card_type_arg`, `card_location`, `card_location_arg`) VALUES %s",
+        //         implode(",", $animal_deck_sql)
+        //     )
+        // );
+
+        // Create card objects
+        $animal_cards = [];
+        foreach ($this->getAnimals() as $animal_id => $animal) {
+            $animal_cards[] = ['type' => 'animal', 'type_arg' => $animal_id, 'nbr' => 1];
         }
-        $sql .= implode(',', $sql_values);
-        $this->DbQuery($sql);
+        $this->animalCards->createCards($animal_cards, 'deck');
 
+        $this->dump('[setupNewGame] $this->animalCards: ', $this->animalCards);
 
         // Activate first player once everything has been initialized and ready.
-        $this->gamestate->changeActivePlayer($blackplayer_id);
+        $this->gamestate->changeActivePlayer($player_ids[0]);
+    }
+
+    /**
+     * Game state arguments
+     * -- This method returns some additional information that is very specific to the `assignCharacters` game state.
+     *
+     * @return array
+     * @see ./states.inc.php
+     */
+    public function argAssignCharacters(): array {
+        // Get some values from the current game situation from the database.
+        return [
+            // 'possibleMoves' => $this->getPossibleMoves( intval($this->getActivePlayerId()) )
+            'unassignedCharacters' => $this->getUnassignedCharacters()
+        ];
+    }
+
+    public function argBuildPhase(): array {
+        // Get some values from the current game situation from the database.
+        return [
+            // 'beasts' => $this->getBeasts()
+        ];
     }
 
     /**
@@ -144,67 +211,133 @@ class Game extends \Table {
      *
      * @throws BgaUserException
      */
-    function actPlayDisc(int $x, int $y) {
+    // function actPlayDisc(int $x, int $y) {
+        //     $playerID = intval($this->getActivePlayerId());
+
+        //     // Now, check if this is a possible move
+        //     $board = $this->getBoardPieces();
+        //     $turnedOverDiscs = $this->getTurnedOverDiscs($board, $x, $y, $playerID);
+
+        //     if (count($turnedOverDiscs) > 0) {
+        //         // valid move
+        //         // Let's place a disc at x,y and return all "$returned" discs to the active player
+        //         $sql = "UPDATE board SET board_player='$playerID'
+        //                 WHERE ( board_x, board_y) IN ( ";
+
+        //         foreach( $turnedOverDiscs as $turnedOver ) {
+        //             $sql .= "('".$turnedOver['x']."','".$turnedOver['y']."'),";
+        //         }
+        //         $sql .= "('$x','$y') ) ";
+
+        //         $this->DbQuery($sql);
+
+        //         // Update scores according to the number of disc on board
+        //         $scoreSql = "UPDATE player
+        //                 SET player_score = (
+        //                 SELECT COUNT( board_x ) FROM board WHERE board_player=player_id
+        //                 )";
+        //         $this->DbQuery($scoreSql);
+
+        //         // Statistics
+        //         $this->incStat(count($turnedOverDiscs), "turnedOver", $playerID);
+        //         if (($x==1 && $y==1) || ($x==8 && $y==1) || ($x==1 && $y==8) || ($x==8 && $y==8) ) {
+        //             $this->incStat(1, 'discPlayedOnCorner', $playerID);
+        //         } else if ($x==1 || $x==8 || $y==1 || $y==8) {
+        //             $this->incStat(1, 'discPlayedOnBorder', $playerID);
+        //         } else if ($x>=3 && $x<=6 && $y>=3 && $y<=6) {
+        //             $this->incStat(1, 'discPlayedOnCenter', $playerID);
+        //         }
+
+        //         // Notify
+        //         $this->notify->all("playDisc", clienttranslate( '${player_name} plays a disc and turns over ${returned_nbr} disc(s)' ), array(
+        //             'player_id' => $playerID,
+        //             'player_name' => $this->getActivePlayerName(),
+        //             'returned_nbr' => count($turnedOverDiscs),
+        //             'x' => $x,
+        //             'y' => $y
+        //         ));
+
+        //         $this->notify->all("turnOverDiscs", '', array(
+        //             'player_id' => $playerID,
+        //             'turnedOver' => $turnedOverDiscs
+        //         ));
+
+        //         $newScores = $this->getCollectionFromDb( "SELECT player_id, player_score FROM player", true );
+        //         $this->notify->all("newScores", "", array(
+        //             "scores" => $newScores
+        //         ));
+
+        //         // Then, go to the next state
+        //         $this->gamestate->nextState('nextPlayer');
+        //     } else {
+        //         throw new \BgaSystemException("Impossible move");
+        //     }
+    // }
+
+    function actSelectCharacter(string $selectedCharacterID) {
+        // framework already determined if the player that sent this action is an active player
         $playerID = intval($this->getActivePlayerId());
 
-        // Now, check if this is a possible move
-        $board = $this->getBoardPieces();
-        $turnedOverDiscs = $this->getTurnedOverDiscs($board, $x, $y, $playerID);
+        $unassignedCharacters = $this->getUnassignedCharacters();
 
-        if (count($turnedOverDiscs) > 0) {
+        $this->dump('$selectedCharacterID', $selectedCharacterID);
+        $this->dump('$unassignedCharacters', $unassignedCharacters);
+
+        $unassignedIDs = array_map(
+            function ($c) { return $c['id']; },
+            $unassignedCharacters
+        );
+
+        $this->dump('$unassignedIDs', $unassignedIDs);
+
+        if (in_array($selectedCharacterID, $unassignedIDs)) {
             // valid move
-            // Let's place a disc at x,y and return all "$returned" discs to the active player
-            $sql = "UPDATE board SET board_player='$playerID'
-                    WHERE ( board_x, board_y) IN ( ";
 
-            foreach( $turnedOverDiscs as $turnedOver ) {
-                $sql .= "('".$turnedOver['x']."','".$turnedOver['y']."'),";
-            }
-            $sql .= "('$x','$y') ) ";
+            // update player table to have character ID
+            $player_write = "UPDATE player SET selected_character_id='$selectedCharacterID' WHERE (player_id) IN ('$playerID');";
+            $this->DbQuery($player_write);
 
-            $this->DbQuery($sql);
-
-            // Update scores according to the number of disc on board
-            $scoreSql = "UPDATE player
-                    SET player_score = (
-                    SELECT COUNT( board_x ) FROM board WHERE board_player=player_id
-                    )";
-            $this->DbQuery($scoreSql);
-
-            // Statistics
-            $this->incStat(count($turnedOverDiscs), "turnedOver", $playerID);
-            if (($x==1 && $y==1) || ($x==8 && $y==1) || ($x==1 && $y==8) || ($x==8 && $y==8) ) {
-                $this->incStat(1, 'discPlayedOnCorner', $playerID);
-            } else if ($x==1 || $x==8 || $y==1 || $y==8) {
-                $this->incStat(1, 'discPlayedOnBorder', $playerID);
-            } else if ($x>=3 && $x<=6 && $y>=3 && $y<=6) {
-                $this->incStat(1, 'discPlayedOnCenter', $playerID);
-            }
-
-            // Notify
-            $this->notify->all("playDisc", clienttranslate( '${player_name} plays a disc and turns over ${returned_nbr} disc(s)' ), array(
-                'player_id' => $playerID,
+            // notify
+            $this->notify->all("selectCharacter", clienttranslate('${player_name} chooses ${character_display_name}' ), array(
                 'player_name' => $this->getActivePlayerName(),
-                'returned_nbr' => count($turnedOverDiscs),
-                'x' => $x,
-                'y' => $y
+                'character_id' => $selectedCharacterID,
+                'character_display_name' => array_find(Object.values($unassignedCharacters), fn ($c) { return $c['display_name']; })
             ));
 
-            $this->notify->all("turnOverDiscs", '', array(
-                'player_id' => $playerID,
-                'turnedOver' => $turnedOverDiscs
-            ));
+            // $this->notify->all("turnOverDiscs", '', array(
+            //     'player_id' => $playerID,
+            //     'turnedOver' => $turnedOverDiscs
+            // ));
 
-            $newScores = $this->getCollectionFromDb( "SELECT player_id, player_score FROM player", true );
-            $this->notify->all("newScores", "", array(
-                "scores" => $newScores
-            ));
-
-            // Then, go to the next state
-            $this->gamestate->nextState('nextPlayer');
+            $this->gamestate->nextState('characterSelected');
         } else {
             throw new \BgaSystemException("Impossible move");
         }
+    }
+
+    /**
+     * 1: speed-behavior
+     * 2: threat
+     * 3: defense
+     */
+    function actBuildCardFromHand(int $selectedCardID, int $cardNewSection) {
+        // framework already determined if the player that sent this action is an active player
+        $playerID = intval($this->getCurrentPlayerId());
+
+        // update DB for this player to indicate which location & location-arg for this card
+
+        // notify current player
+
+        // notify all players
+
+        // function actPlayKeep($cardId) {
+        //    $this->checkAction('actPlayKeep');
+        //    $player_id = $this->getCurrentPlayerId(); // CURRENT!!! not active
+        //    ... // some logic here
+        //    $this->gamestate->setPlayerNonMultiactive($player_id, 'next'); // deactivate player; if none left, transition to 'next' state
+        // }
+
+
     }
 
     // public function actPass(): void
@@ -221,23 +354,6 @@ class Game extends \Table {
     //     // at the end of the action, move to the next state
     //     $this->gamestate->nextState("pass");
     // }
-
-    public function getBoardPieces() {
-        $pieces = self::getObjectListFromDB(
-            "SELECT board_x x, board_y y, board_player player
-            FROM board
-            WHERE board_player IS NOT NULL"
-        );
-
-        $board = array();
-        foreach ($pieces as $i => $p) {
-            if (!array_key_exists($p['x'], $board)) {
-                $board[$p['x']] = array();
-            }
-            $board[$p['x']][$p['y']] = $p['player'];
-        }
-        return $board;
-    }
 
     // return array of disc coords. that would be turned over if a new disc placed at (x, y) location for given player
     public function getTurnedOverDiscs($board, $x, $y, $playerID): array {
@@ -366,72 +482,48 @@ class Game extends \Table {
             ...
         ]
     */
-    public function getPossibleMoves($playerID): array {
-        $MOVE_DIRECTIONS = [
-            [-1, 0],
-            [-1, 1],
-            [0, 1],
-            [1, 1],
-            [1, 0],
-            [1, -1],
-            [0, -1],
-            [-1, -1]
-        ];
-        $resultMoves = [];
+    // public function getPossibleMoves($playerID): array {
+        //     $MOVE_DIRECTIONS = [
+        //         [-1, 0],
+        //         [-1, 1],
+        //         [0, 1],
+        //         [1, 1],
+        //         [1, 0],
+        //         [1, -1],
+        //         [0, -1],
+        //         [-1, -1]
+        //     ];
+        //     $resultMoves = [];
 
-        $board = $this->getBoardPieces();
+        //     $board = $this->getBoardPieces();
 
-        for ($x = 1; $x < 9; $x++) {
-            for ($y = 1; $y < 9; $y++) {
-                $flippedDiscs = $this->getTurnedOverDiscs($board, $x, $y, $playerID);
-                if (count($flippedDiscs) > 0) {
-                    if (!array_key_exists($x, $resultMoves)) {
-                        $resultMoves[$x] = array();
-                    }
-                    // add possible move for specified player to result-moves set
-                    $resultMoves[$x][$y] = $flippedDiscs;
-                }
-            }
-        }
+        //     for ($x = 1; $x < 9; $x++) {
+        //         for ($y = 1; $y < 9; $y++) {
+        //             $flippedDiscs = $this->getTurnedOverDiscs($board, $x, $y, $playerID);
+        //             if (count($flippedDiscs) > 0) {
+        //                 if (!array_key_exists($x, $resultMoves)) {
+        //                     $resultMoves[$x] = array();
+        //                 }
+        //                 // add possible move for specified player to result-moves set
+        //                 $resultMoves[$x][$y] = $flippedDiscs;
+        //             }
+        //         }
+        //     }
 
-        return $resultMoves;
-    }
+        //     return $resultMoves;
+    // }
 
-    /**
-     * Game state arguments, example content.
-     *
-     * This method returns some additional information that is very specific to the `playerTurn` game state.
-     *
-     * @return array
-     * @see ./states.inc.php
-     */
-    public function argPlayerTurn(): array {
-        // Get some values from the current game situation from the database.
-        return [
-            'possibleMoves' => $this->getPossibleMoves( intval($this->getActivePlayerId()) )
-        ];
-    }
 
-    /**
-     * Compute and return the current game progression.
-     *
-     * The number returned must be an integer between 0 and 100.
-     *
-     * This method is called each time we are in a game state with the "updateGameProgression" property set to true.
-     *
-     * @return int
-     * @see ./states.inc.php
-     */
-    public function getGameProgression()
-    {
-        return 0;
-    }
+
+
+
 
     /**
      * Game state action, example content.
      *
      * The action method of state `nextPlayer` is called everytime the current game state is set to `nextPlayer`.
      */
+    /*
     function stNextPlayer(): void {
         // Make next player in the order the active player
         $next_player_id = intval($this->activeNextPlayer());
@@ -478,6 +570,77 @@ class Game extends \Table {
             $this->gamestate->nextState('playerTurn');
         }
     }
+    */
+
+    function stAssignmentCheck(): void {
+        // check if all the players have selected characters
+        $player_read = "SELECT player_id FROM player WHERE selected_character_id IS NULL";
+        $players = $this->getObjectListFromDB($player_read);
+
+        if (!count($players)) {
+            $this->gamestate->nextState('allPlayersChosen');
+        } else {
+            // Make next player in the order the active player
+            $next_player_id = intval($this->activeNextPlayer());
+            $this->gamestate->nextState('charactersRemaining');
+        }
+    }
+
+    function stDealCards(): void {
+        // shuffle the Animal Deck, and deal 6 Animal Cards to each player
+        $this->animalCards->shuffle('deck');
+        $qty = 1;
+
+        $players = $this->getPlayers();
+        foreach ($players as $player_id => $player) {
+            $this->animalCards->pickCards($qty, 'deck', $player_id);
+
+            // Notify player about their cards
+            // $this->notify->all($player_id, 'cardsDrawn', '', ['qty' => 1]);
+
+            // notify all players about new cards drawn
+            $player_name = $player["player_name"];
+            $this->notify->all("cardsDrawn", clienttranslate("${player_name} draws ${qty} Animal Card" . ($qty > 1 ? 's' : '') . ' from the deck'), array(
+                "player_id" => $player_id,
+                "player_name" => $player_name,
+                "qty" => 1
+            ));
+        }
+
+        // $animalCards =
+
+        $this->gamestate->nextState('handsDealt');
+    }
+
+    function stActivateBiome(): void {
+        // change Active Biome to next - if none set, use the first in the Biome Deck
+
+        // use a gamestate global param for this?
+
+        // $players = $this->getPlayers();
+        // foreach ($players as $player_id => $player) {
+        //     $this->cards->pickCards($qty, 'deck', $player_id);
+
+        //     // Notify player about their cards
+        //     // $this->notify->all($player_id, 'cardsDrawn', '', ['qty' => 1]);
+
+
+        // }
+
+        // notify all players about new biome
+        // $player_name = $player["player_name"];
+        // $this->notify->all("cardsDrawn", clienttranslate("${player_name} draws ${qty} Animal Card" . ($qty > 1 ? 's' : '') . ' from the deck'), array(
+        //     "player_id" => $player_id,
+        //     "player_name" => $player_name,
+        //     "qty" => 1
+        // ));
+
+        $this->gamestate->nextState('biomeActivated');
+    }
+
+    function stBuildPhase(): void {
+        $this->gamestate->setAllPlayersMultiactive();
+    }
 
     /**
      * Migrate database.
@@ -508,6 +671,82 @@ class Game extends \Table {
         //       }
     }
 
+    /**
+     * Compute and return the current game progression.
+     *
+     * The number returned must be an integer between 0 and 100.
+     *
+     * This method is called each time we are in a game state with the "updateGameProgression" property set to true.
+     *
+     * @return int
+     * @see ./states.inc.php
+     */
+    public function getGameProgression() {
+        return 0;
+    }
+
+    public function getUnassignedCharacters(): array {
+        $result = [];
+
+        $characters = $this->getCharacters();
+        $players = $this->getPlayers();
+
+        foreach ($players as $player_id => $player) {
+            $this->dump('$player', $player);
+            if ($player) {
+                $selected_char = $player['selected_character_id'];
+
+                $this->dump('$selected_char', $selected_char);
+
+                if ($selected_char) {
+                    unset($characters[$selected_char]);
+                }
+            }
+        }
+
+        return $characters;
+    }
+
+    public function getCharacters() {
+        // @TODO: avoid extra DB calls and cache the result somewhere?
+        $characters = $this->getCollectionFromDb(
+            "SELECT `id`, `display_name`, `slug`, `flavor_text` FROM `character`"
+        );
+
+        return $characters;
+    }
+
+    public function getPlayers() {
+        // this could change more often than characters/animals
+        $players = $this->getCollectionFromDb(
+            "SELECT `player_id` `id`, `player_score` `score`, `player_color` `color`, `selected_character_id` `selected_character_id`, `player_name` `player_name` FROM `player`"
+        );
+
+        $this->dump('$players: ', $players);
+
+        return $players;
+    }
+
+    public function getAnimals() {
+        $animals = $this->getCollectionFromDb(
+            "SELECT `id`, `display_name`, `family_id` FROM `animal`"
+        );
+
+        $this->dump('$animals: ', $animals);
+
+        return $animals;
+    }
+
+    public function getFamilies() {
+        $families = $this->getCollectionFromDb(
+            "SELECT `id`, `display_name` FROM `family`"
+        );
+
+        $this->dump('$families: ', $families);
+
+        return $families;
+    }
+
     /*
      * Gather all information about current game situation (visible by the current player).
      *
@@ -516,21 +755,32 @@ class Game extends \Table {
      * - when the game starts
      * - when a player refreshes the game page (F5)
      */
-    protected function getAllDatas(): array
-    {
+    protected function getAllDatas(): array {
         $result = [];
 
         // WARNING: We must only return information visible by the current player.
         $current_player_id = (int) $this->getCurrentPlayerId();
 
-        // Get information about players.
-        // NOTE: you can retrieve some extra field you added for "player" table in `dbmodel.sql` if you need it.
-        $result["players"] = $this->getCollectionFromDb(
-            "SELECT `player_id` `id`, `player_score` `score`, `player_color` `color` FROM `player`"
+        $result["players"] = $this->getPlayers();
+        $result["characters"] = $this->getCharacters();
+        $result["animals"] = $this->getAnimals();
+
+        $this->dump('[getAllDatas] $this->animalCards: ', $this->animalCards);
+        $this->dump('[getAllDatas] $current_player_id: ', $current_player_id);
+        // $current_player_id = (int) $this->getCurrentPlayerId();
+
+        // Cards in current player hand
+        $result["hand"] = $this->animalCards->getCardsInLocation('hand', $current_player_id);
+
+        $this->dump('[getAllDatas] $result: ', $result);
+
+        $cards = $this->getCollectionFromDb(
+            "SELECT card_id, card_type, card_type_arg, card_location, card_location_arg FROM card"
         );
+        $this->dump('$cards: ', $cards);
 
-
-        $result['board'] = $this->getBoardPieces();
+        // Cards played on beasts
+        // $result["cardsontable"] = $this->cards->getCardsInLocation( 'cardsontable' );
 
         return $result;
     }
@@ -540,8 +790,7 @@ class Game extends \Table {
      *
      * IMPORTANT: Please do not modify.
      */
-    protected function getGameName()
-    {
+    protected function getGameName() {
         return "beastbuilders";
     }
 

@@ -45,57 +45,81 @@
 
 /* Note: you must not use any @import directive */
 
+.hidden {
+    display: none !important;
+}
 
 #pagemaintitle_wrap {
     height: auto; /* core library bugfix or-what??? */
 }
 
-/********* You can start writing your CSS below this line: **********/
-
-
 /*
-    Example of CSS sprites (a black token and a white token, 20x20px each, embedded in the same "tokens.png" 40x20px image):
+    #board {
+        width: 536px;
+        height: 528px;
+        background-image: url('img/board.jpg');
+        position: relative;
+    }
 
-    .white_token {
-        background-image: url('img/tokens.png');
-        background-position: 0px 0px;
+    .square {
+        width: 62px;
+        height: 62px;
+        position: absolute;
     }
-    .black_token {
+
+    .disc {
+        width: 56px;
+        height: 56px;
+        position: absolute;
         background-image: url('img/tokens.png');
-        background-position: -20px 0px;
+        background-size: auto 100%;
     }
-    .token {
-        width: 20px;
-        height: 20px;
-        background-repeat: none;
+    .disc[data-color="ffffff"] { background-position-x: 0%; }
+    .disc[data-color="000000"] { background-position-x: 100%; }
+
+    .possibleMove {
+        background-color: white;
+        opacity: 0.2;
+        cursor: pointer;
     }
 */
 
-#board {
-    width: 536px;
-    height: 528px;
-    background-image: url('img/board.jpg');
-    position: relative;
+#unassigned-characters {
+    display: flex;
+    flex-flow: row wrap;
+    gap: 8px;
+    width: 100%;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
 }
-
-.square {
-    width: 62px;
-    height: 62px;
-    position: absolute;
-}
-
-.disc {
-    width: 56px;
-    height: 56px;
-    position: absolute;
-    background-image: url('img/tokens.png');
-    background-size: auto 100%;
-}
-.disc[data-color="ffffff"] { background-position-x: 0%; }
-.disc[data-color="000000"] { background-position-x: 100%; }
-
-.possibleMove {
-    background-color: white;
-    opacity: 0.2;
+#unassigned-characters .player-mat {
     cursor: pointer;
+}
+
+.player-mat {
+    width: 49%;
+    background-size: contain;
+    background-repeat: no-repeat;
+    min-height: 248px;
+}
+
+/* @TODO: USE SINGLE SPRITE-STYLE IMAGE FOR EFFICIENT LOADING */
+.player-mat.vortek {
+    background-image: url('img/player-mats/vortek-1000w.png');
+}
+.player-mat.ko {
+    background-image: url('img/player-mats/ko-1000w.png');
+}
+.player-mat.eth1 {
+    background-image: url('img/player-mats/eth1-1000w.png');
+}
+.player-mat.taaq {
+    background-image: url('img/player-mats/taaq-1000w.png');
+}
+.player-mat.atomizer {
+    background-image: url('img/player-mats/atomizer-1000w.png');
+}
+.player-mat.zychro {
+    background-image: url('img/player-mats/zychro-1000w.png');
 }

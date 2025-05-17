@@ -16,7 +16,8 @@
  */
 
 define([
-    "dojo","dojo/_base/declare",
+    "dojo",
+    "dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter"
 ],
@@ -28,7 +29,6 @@ function (dojo, declare) {
             // Here, you can init the global variables of your user interface
             // Example:
             // this.myGlobalValue = 0;
-
         },
         
         /*
@@ -44,65 +44,60 @@ function (dojo, declare) {
             "gamedatas" argument contains all datas retrieved by your "getAllDatas" PHP method.
         */
         
-        setup: function(gamedatas)
-        {
+        setup: function(gamedatas) {
             console.log("Starting game setup");
 
-            // Example to add a div on the game area
+            console.log('gamedatas: ', gamedatas);
+
+            // setting up play field
             this.getGameAreaElement().insertAdjacentHTML('beforeend', `
                 <div id="board">
-                    <div id="discs"></div>
+                    <div id="unassigned-characters"></div>
+                    <div id="player-tables"></div>
+                    <div id="current-player-hand"></div>
                 </div>
             `);
             
-            // Setting up player boards
+            // Setting up player areas
             Object.values(gamedatas.players).forEach(player => {
-                // example of setting up players boards
                 this.getPlayerPanelElement(player.id).insertAdjacentHTML('beforeend', `
                     <div id="player-counter-${player.id}">A player counter</div>
                 `);
 
-                // example of adding a div for each player
-                // document.getElementById('player-tables').insertAdjacentHTML('beforeend', `
-                //     <div id="player-table-${player.id}">
-                //         <strong>${player.name}</strong>
-                //         <div>Player zone content goes here</div>
-                //     </div>
-                // `);
+                document.getElementById('player-tables').insertAdjacentHTML('beforeend', `
+                    <div id="player-table-${player.id}">
+                        <div class="player-beast">
+                            <strong class="label">${player.display_name}'s Beast</strong>
+                            <div class="content"></div>
+                        </div>
+                    </div>
+                `);
             });
-            
-            const board = document.getElementById('board');
-            const hor_scale = 64.8;
-            const ver_scale = 64.4;
-            for (let x = 1; x <= 8; x++) {
-                for (let y = 1; y <= 8; y++) {
-                    const left = Math.round((x - 1) * hor_scale + 10);
-                    const top = Math.round((y - 1) * ver_scale + 7);
-                    // we use afterbegin to make sure squares are placed before discs
-                    board.insertAdjacentHTML(
-                        `afterbegin`,
-                        `<div id="square_${x}_${y}" class="square" style="left: ${left}px; top: ${top}px;"></div>`
-                    );
-                }
-            }
- 
-            // square click handlers
-            document.querySelectorAll('.square').forEach(
-                square => square.addEventListener('click', e => this.onPlayDisc(e))
-            );
 
-            // gamedatas populated via getAllDatas()
-            for (const [row, colValues] of Object.entries(gamedatas.board)) {
-                for (const col in colValues) {
-                    const square = gamedatas.board[row][col];
-                    if (!!square) {
-                        this.addDiscOnBoard(row, col, square);
-                    }
-                }
-            }
+            Object.values(gamedatas.hand || {}).forEach(card => {
+                const cardAnimal = Object.values(gamedatas.animals).find((a) => (a.id === card.type_arg));
+
+                // @TODO: robustify this
+                const animalSlug = cardAnimal.display_name.toLowerCase().replace(/\s/g, '');
+
+                document.getElementById('current-player-hand').insertAdjacentHTML('beforeend', `
+                    <div class="card animal-card ${animalSlug}" data-animalid="${card.type_arg}"></div>
+                `);
+            });
+
+            // Setting up unassigned characters
+            Object.values(gamedatas.characters).forEach(character => {
+                document.getElementById('unassigned-characters').insertAdjacentHTML('beforeend', `
+                    <div id="player-mat-${character.id}" class="player-mat ${character.slug} unassigned-player-mat hidden" data-characterid="${character.id}"></div>
+                `);
+            });
+            document.querySelectorAll('#unassigned-characters .player-mat').forEach(
+                element => element.addEventListener('click', e => this.onSelectCharacter(e))
+            );
 
             // Setup game notifications to handle (see "setupNotifications" method below)
             this.setupNotifications();
+
             console.log( "Ending game setup" );
         },
        
@@ -113,17 +108,21 @@ function (dojo, declare) {
         // onEnteringState: this method is called each time we are entering into a new game state.
         //                  You can use this method to perform some user interface changes at this moment.
         //
-        onEnteringState: function(stateName, args)
-        {
+        onEnteringState: function(stateName, args) {
             console.log('Entering state: ' + stateName, args);
             
             const currentPlayerIsActive = this.isCurrentPlayerActive();
 
-            switch( stateName ) {
-                case 'playerTurn':
-                    if (currentPlayerIsActive) {
-                        this.updatePossibleMoves( args.args.possibleMoves );
-                    }
+            switch(stateName) {
+                case 'assignCharacters':
+                    // if (currentPlayerIsActive) {
+                        this.showUnassignedCharacters(Object.values(args.args.unassignedCharacters || {}));
+                    // }
+                    break;
+
+                case 'dealCards':
+                    // hide the remaining characters from assign-step (better place to do this?)
+                    this.showUnassignedCharacters([]);
                     break;
             }
         },
@@ -131,24 +130,17 @@ function (dojo, declare) {
         // onLeavingState: this method is called each time we are leaving a game state.
         //                 You can use this method to perform some user interface changes at this moment.
         //
-        onLeavingState: function( stateName )
-        {
-            console.log( 'Leaving state: ' + stateName );
+        onLeavingState: function( stateName ) {
+            console.log('Leaving state: ' + stateName);
             
-            switch( stateName )
-            {
-            
-            /* Example:
-            
-            case 'myGameState':
-            
-                // Hide the HTML block we are displaying only during this game state
-                dojo.style( 'my_html_block_id', 'display', 'none' );
-                
-                break;
-           */
-           
-           
+            switch(stateName) {
+                /*
+                    Example:
+                    case 'myGameState':
+                        // Hide the HTML block we are displaying only during this game state
+                        dojo.style( 'my_html_block_id', 'display', 'none' );
+                        break;
+                */
             case 'dummy':
                 break;
             }               
@@ -157,27 +149,27 @@ function (dojo, declare) {
         // onUpdateActionButtons: in this method you can manage "action buttons" that are displayed in the
         //                        action status bar (ie: the HTML links in the status bar).
         //        
-        onUpdateActionButtons: function(stateName, args)
-        {
-            console.log( 'onUpdateActionButtons: ' + stateName, args );
+        onUpdateActionButtons: function(stateName, args) {
+            console.log('onUpdateActionButtons: ' + stateName, args);
                       
-            if( this.isCurrentPlayerActive() )
-            {            
-                switch( stateName )
-                {
-                 case 'playerTurn':    
-                    // const playableCardsIds = args.playableCardsIds; // returned by the argPlayerTurn
+            if (this.isCurrentPlayerActive()) {
+                switch(stateName) {
+                    case 'assignCharacters':
 
-                    // // Add test action buttons in the action status bar, simulating a card click:
-                    // playableCardsIds.forEach(
-                    //     cardId => this.statusBar.addActionButton(
-                    //         _('Play card with id ${card_id}').replace('${card_id}', cardId),
-                    //         () => this.onCardClick(cardId)
-                    //     )
-                    // );
+                        // @TODO: DISPLAY CLICKABLE BUTTONS TO ACTIVE PLAYER
 
-                    // this.statusBar.addActionButton(_('Pass'), () => this.bgaPerformAction("actPass"), { color: 'secondary' });
-                    break;
+                        // const playableCardsIds = args.playableCardsIds; // returned by the argPlayerTurn
+
+                        // // Add test action buttons in the action status bar, simulating a card click:
+                        // playableCardsIds.forEach(
+                        //     cardId => this.statusBar.addActionButton(
+                        //         _('Play card with id ${card_id}').replace('${card_id}', cardId),
+                        //         () => this.onCardClick(cardId)
+                        //     )
+                        // );
+
+                        // this.statusBar.addActionButton(_('Pass'), () => this.bgaPerformAction("actPass"), { color: 'secondary' });
+                        break;
                 }
             }
         },        
@@ -199,18 +191,36 @@ function (dojo, declare) {
             await this.bgaPlayDojoAnimation(anim);
         },
 
-        updatePossibleMoves: function(possibleMoves) {
-            // Remove current possible moves
-            document.querySelectorAll('.possibleMove').forEach(div => div.classList.remove('possibleMove'));
+        // updatePossibleMoves: function(possibleMoves) {
+        //     // Remove current possible moves
+        //     document.querySelectorAll('.possibleMove').forEach(div => div.classList.remove('possibleMove'));
 
-            for (var x in possibleMoves) {
-                for (var y in possibleMoves[x]) {
-                    // x,y is a possible move
-                    document.getElementById(`square_${x}_${y}`).classList.add('possibleMove');
+        //     for (var x in possibleMoves) {
+        //         for (var y in possibleMoves[x]) {
+        //             // x,y is a possible move
+        //             document.getElementById(`square_${x}_${y}`).classList.add('possibleMove');
+        //         }
+        //     }
+
+        //     this.addTooltipToClass('possibleMove', '', _('Place a disc here'));
+        // },
+        showUnassignedCharacters: function(unassignedCharacters) {
+            const charactersToShow = unassignedCharacters.map((c) => c.id);
+
+            console.log('charactersToShow: ', charactersToShow);
+
+            document.querySelectorAll('#unassigned-characters .unassigned-player-mat').forEach(element => {
+
+                console.log('element: ', element);
+
+                if (charactersToShow.includes(element.dataset.characterid)) {
+                    element.classList.remove('hidden');
+                } else {
+                    element.classList.add('hidden');
                 }
-            }
+            });
 
-            this.addTooltipToClass('possibleMove', '', _('Place a disc here'));
+            this.addTooltipToClass('unassigned-player-mat', '', _('Select this character'));
         },
 
 
@@ -229,37 +239,40 @@ function (dojo, declare) {
         */
         
         // Example:
-        
-        // onCardClick: function( card_id )
-        // {
-        //     console.log( 'onCardClick', card_id );
+        // onPlayDisc: function(evt) {
+            //     // Stop this event propagation
+            //     evt.preventDefault();
+            //     evt.stopPropagation();
 
-        //     this.bgaPerformAction("actPlayCard", {
-        //         card_id,
-        //     }).then(() =>  {
-        //         // What to do after the server call if it succeeded
-        //         // (most of the time, nothing, as the game will react to notifs / change of state instead)
-        //     });
-        // },
-        onPlayDisc: function(evt) {
+            //     // Get the clicked square x and y
+            //     // Note: square id format is "square_X_Y"
+            //     var coords = evt.currentTarget.id.split('_');
+            //     var x = coords[1];
+            //     var y = coords[2];
+
+            //     if (!document.getElementById(`square_${x}_${y}`).classList.contains('possibleMove')) {
+            //         // This is not a possible move => the click does nothing
+            //         return;
+            //     }
+
+            //     this.bgaPerformAction('actPlayDisc', {
+            //         x : x,
+            //         y : y
+            //     });
+            // },
+        onSelectCharacter: function(evt) {
             // Stop this event propagation
             evt.preventDefault();
             evt.stopPropagation();
 
-            // Get the clicked square x and y
-            // Note: square id format is "square_X_Y"
-            var coords = evt.currentTarget.id.split('_');
-            var x = coords[1];
-            var y = coords[2];
+            const selectedCharacterID = evt.currentTarget.dataset.characterid;
+            // if (!document.getElementById(`square_${x}_${y}`).classList.contains('possibleMove')) {
+            //     // This is not a possible move => the click does nothing
+            //     return;
+            // }
 
-            if (!document.getElementById(`square_${x}_${y}`).classList.contains('possibleMove')) {
-                // This is not a possible move => the click does nothing
-                return;
-            }
-
-            this.bgaPerformAction('actPlayDisc', {
-                x : x,
-                y : y
+            this.bgaPerformAction('actSelectCharacter', {
+                selectedCharacterID : selectedCharacterID
             });
         },
 
@@ -273,9 +286,7 @@ function (dojo, declare) {
             
             In this method, you associate each of your game notifications with your local method to handle it.
             
-            Note: game notification names correspond to "notifyAllPlayers" and "notifyPlayer" calls in
-                  your beastbuilders.game.php file.
-        
+            Note: game notification names correspond to "notifyAllPlayers" and "notifyPlayer" calls in your beastbuilders.game.php file.
         */
         setupNotifications: function() {
             console.log( 'notifications subscriptions setup' );
@@ -298,12 +309,23 @@ function (dojo, declare) {
         
         // TODO: from this point and below, you can write your game notifications handling methods
         
-        notif_playDisc: async function(args) {
-            // Remove current possible moves (makes the board more clear)
-            document.querySelectorAll('.possibleMove').forEach(div => div.classList.remove('possibleMove'));
+        notif_selectCharacter: async function(args) {
+            const characterID = args.character_id;
 
-            await this.addDiscOnBoard(args.x, args.y, args.player_id);
+            // hide this character's player mat
+            document.querySelectorAll('#unassigned-characters .unassigned-player-mat').forEach(element => {
+                if (element.dataset.characterid === characterID) {
+                    element.classList.add('hidden');
+                }
+            });
         },
+
+        // notif_playDisc: async function(args) {
+        //     // Remove current possible moves (makes the board more clear)
+        //     document.querySelectorAll('.possibleMove').forEach(div => div.classList.remove('possibleMove'));
+
+        //     await this.addDiscOnBoard(args.x, args.y, args.player_id);
+        // },
 
         notif_turnOverDiscs: async function(args) {
             // Get the color of the player who is returning the discs
