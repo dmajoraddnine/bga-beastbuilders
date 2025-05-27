@@ -22,8 +22,9 @@
 
 
 CREATE TABLE IF NOT EXISTS `biome` (
-  `id`           int(10) unsigned NOT NULL,
-  `display_name` varchar(64) NOT NULL,
+  `id`                   int(10) unsigned NOT NULL,
+  `display_name`         varchar(64) NOT NULL,
+  `basic_buff_family_id` int(10) unsigned NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -52,24 +53,24 @@ CREATE TABLE IF NOT EXISTS `character` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 
 
--- use Card rows for Animal & Biome
-CREATE TABLE IF NOT EXISTS card (
+-- @TODO: is it possible to use 1 table for all cards?
+CREATE TABLE IF NOT EXISTS animal_deck (
   card_id           int(10) unsigned NOT NULL AUTO_INCREMENT,
   card_type         varchar(16) NOT NULL,
   card_type_arg     int(11) NOT NULL,
   card_location     varchar(16) NOT NULL,
   card_location_arg int(11) NOT NULL,
   PRIMARY KEY (card_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 
--- CREATE TABLE IF NOT EXISTS `card` (
---   `card_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
---   `card_type` varchar(16) NOT NULL,
---   `card_type_arg` int(11) NOT NULL,
---   `card_location` varchar(16) NOT NULL,
---   `card_location_arg` int(11) NOT NULL,
---   PRIMARY KEY (`card_id`)
--- ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+CREATE TABLE IF NOT EXISTS biome_deck (
+  card_id           int(10) unsigned NOT NULL AUTO_INCREMENT,
+  card_type         varchar(16) NOT NULL,
+  card_type_arg     int(11) NOT NULL,
+  card_location     varchar(16) NOT NULL,
+  card_location_arg int(11) NOT NULL,
+  PRIMARY KEY (card_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 
 
 -- CREATE TABLE IF NOT EXISTS beast (

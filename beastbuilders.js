@@ -52,6 +52,7 @@ function (dojo, declare) {
             // setting up play field
             this.getGameAreaElement().insertAdjacentHTML('beforeend', `
                 <div id="board">
+                    <div id="biome-deck"></div>
                     <div id="unassigned-characters"></div>
                     <div id="player-tables"></div>
                     <div id="current-player-hand"></div>
@@ -65,13 +66,18 @@ function (dojo, declare) {
                 `);
 
                 document.getElementById('player-tables').insertAdjacentHTML('beforeend', `
-                    <div id="player-table-${player.id}">
+                    <div id="player-table-${player.id}" class="player-table">
                         <div class="player-beast">
-                            <strong class="label">${player.display_name}'s Beast</strong>
+                            <strong class="label">${player.name}'s Beast</strong>
                             <div class="content"></div>
                         </div>
                     </div>
                 `);
+
+                if (player.selected_character_id) {
+                    const character = Object.values(gamedatas.characters).find((c) => (c.id === player.selected_character_id));
+                    this.insertPlayerMat(player.id, character.id, character.slug);
+                }
             });
 
             Object.values(gamedatas.hand || {}).forEach(card => {
@@ -95,8 +101,30 @@ function (dojo, declare) {
                 element => element.addEventListener('click', e => this.onSelectCharacter(e))
             );
 
+            // Setting up biome deck
+            Object.values(gamedatas.biomeDeck).forEach((biome, i) => {
+                const roundID = i + 1;
+                let biomeSlug;
+                if (biome.id) {
+                    // @TODO: robustify this
+                    biomeSlug = biome.displayName.toLowerCase().replace(/\s/g, '-');
+                } else {
+                    biomeSlug = 'hidden-biome';
+                }
+                document.getElementById('biome-deck').insertAdjacentHTML('beforeend', `
+                    <div class="biome-wrapper">
+                        <div class="biome-label">
+                            Round ${roundID} Biome
+                        </div>
+                        <div id="biome-card-${roundID}" class="biome-card card-${roundID} ${biomeSlug}" data-biomeid="${biome.id}"></div>
+                    </div>
+                `);
+            })
+
             // Setup game notifications to handle (see "setupNotifications" method below)
             this.setupNotifications();
+
+            this.gamedatas = gamedatas;
 
             console.log( "Ending game setup" );
         },
@@ -177,42 +205,48 @@ function (dojo, declare) {
         ///////////////////////////////////////////////////
         //// Utility methods
         
-        addDiscOnBoard: async function(x, y, player) {
-            const color = this.gamedatas.players[player].color;
-
-            document.getElementById('discs').insertAdjacentHTML(
-                'beforeend',
-                `<div class="disc" data-color="${color}" id="disc_${x}${y}"></div>`
+        insertPlayerMat: function (playerID, characterID, characterSlug) {
+            const playerBeastNode = document.getElementById(`player-table-${playerID}`).getElementsByClassName('content')[0];
+            playerBeastNode.insertAdjacentHTML('beforeend',
+                `<div id="beast-player-mat-${playerID}"
+                    class="player-mat ${characterSlug}"
+                    data-playerid="${playerID}"
+                    data-characterid="${characterID}"
+                ></div>`
             );
-
-            this.placeOnObject(`disc_${x}${y}`, 'overall_player_board_' + player);
-
-            const anim = this.slideToObject(`disc_${x}${y}`, 'square_' + x + '_' + y );
-            await this.bgaPlayDojoAnimation(anim);
         },
 
+        // addDiscOnBoard: async function(x, y, player) {
+            //     const color = this.gamedatas.players[player].color;
+
+            //     document.getElementById('discs').insertAdjacentHTML(
+            //         'beforeend',
+            //         `<div class="disc" data-color="${color}" id="disc_${x}${y}"></div>`
+            //     );
+
+            //     this.placeOnObject(`disc_${x}${y}`, 'overall_player_board_' + player);
+
+            //     const anim = this.slideToObject(`disc_${x}${y}`, 'square_' + x + '_' + y );
+            //     await this.bgaPlayDojoAnimation(anim);
+        // },
+
         // updatePossibleMoves: function(possibleMoves) {
-        //     // Remove current possible moves
-        //     document.querySelectorAll('.possibleMove').forEach(div => div.classList.remove('possibleMove'));
+            //     // Remove current possible moves
+            //     document.querySelectorAll('.possibleMove').forEach(div => div.classList.remove('possibleMove'));
 
-        //     for (var x in possibleMoves) {
-        //         for (var y in possibleMoves[x]) {
-        //             // x,y is a possible move
-        //             document.getElementById(`square_${x}_${y}`).classList.add('possibleMove');
-        //         }
-        //     }
+            //     for (var x in possibleMoves) {
+            //         for (var y in possibleMoves[x]) {
+            //             // x,y is a possible move
+            //             document.getElementById(`square_${x}_${y}`).classList.add('possibleMove');
+            //         }
+            //     }
 
-        //     this.addTooltipToClass('possibleMove', '', _('Place a disc here'));
+            //     this.addTooltipToClass('possibleMove', '', _('Place a disc here'));
         // },
         showUnassignedCharacters: function(unassignedCharacters) {
             const charactersToShow = unassignedCharacters.map((c) => c.id);
 
-            console.log('charactersToShow: ', charactersToShow);
-
             document.querySelectorAll('#unassigned-characters .unassigned-player-mat').forEach(element => {
-
-                console.log('element: ', element);
-
                 if (charactersToShow.includes(element.dataset.characterid)) {
                     element.classList.remove('hidden');
                 } else {
@@ -309,15 +343,38 @@ function (dojo, declare) {
         
         // TODO: from this point and below, you can write your game notifications handling methods
         
+        // 'player_id' =>
+        // 'character_id' =>
+        // 'character_display_name' =>
         notif_selectCharacter: async function(args) {
-            const characterID = args.character_id;
+            // const unassignedCharacterNodes = document.querySelectorAll('#unassigned-characters .unassigned-player-mat');
+            const character = Object.values(this.gamedatas.characters).find((c) => c.id === args.character_id);
 
-            // hide this character's player mat
-            document.querySelectorAll('#unassigned-characters .unassigned-player-mat').forEach(element => {
-                if (element.dataset.characterid === characterID) {
-                    element.classList.add('hidden');
-                }
-            });
+            // do not play animations if the animations aren't activated (fast replay mode)
+            if (!this.bgaAnimationsActive()) {
+                // @TODO: TEST THIS
+                return Promise.resolve();
+            }
+
+            // slide selected player mat to the player table area
+
+            // this.placeOnObject(`beast-player-mat-${args.player_id}`, 'overall_player_board_' + args.player_id);
+
+            const anim = this.slideToObject(`player-mat-${args.character_id}`, `player-table-${args.player_id}`);
+            await this.bgaPlayDojoAnimation(anim);
+
+            // add new element for character mat in player's table area
+            this.insertPlayerMat(args.player_id, character.id, character.slug);
+
+            // hide the already-clicked player mat element
+            document.getElementById(`player-mat-${args.character_id}`).classList.add('hidden');
+
+            // document.getElementById('discs').insertAdjacentHTML(
+            //     'beforeend',
+            //     `<div class="disc" data-color="${color}" id="disc_${x}${y}"></div>`
+            // );
+            // this.placeOnObject(`disc_${x}${y}`, 'overall_player_board_' + player);
+            // const anim = this.slideToObject(`disc_${x}${y}`, 'square_' + x + '_' + y );
         },
 
         // notif_playDisc: async function(args) {

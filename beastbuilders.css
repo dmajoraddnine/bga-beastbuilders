@@ -84,9 +84,28 @@
     }
 */
 
+#player-tables {
+    display: grid;
+    /*justify-content: center;*/
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+    max-width: 1000px;
+    min-height: 248px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 20px;
+}
+
+.player-table {
+    flex-grow: 1;
+    text-align: center;
+    position: relative;
+}
+
 #unassigned-characters {
-    display: flex;
-    flex-flow: row wrap;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
     width: 100%;
     max-width: 1000px;
@@ -98,10 +117,66 @@
 }
 
 .player-mat {
-    width: 49%;
+    width: 100%;
     background-size: contain;
     background-repeat: no-repeat;
     min-height: 248px;
+}
+
+/**
+ * BIOMES
+ */
+#biome-deck {
+    position: relative;
+    display: flex;
+    padding: 8px 20px;
+    border: solid 2px grey;
+    border-radius: 40px;
+    gap: 8px;
+    background-color: rgba(0,0,0,0.3);
+}
+.biome-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    flex-grow: 1;
+}
+.biome-label {
+    font-weight: bold;
+}
+.biome-card {
+    flex-grow: 1;
+    background-size: contain;
+    background-repeat: no-repeat;
+    min-height: 160px;
+    position: relative;
+    margin-top: 8px;
+    background-position: center;
+}
+.biome-card.card-1 {
+    /*position: relative;*/
+    z-index: 5;
+}
+.biome-card.card-2 {
+    /*left: -4%;*/
+    /*top: 20%;*/
+    z-index: 4;
+}
+.biome-card.card-3 {
+    /*left: -8%;*/
+    /*top: 20%;*/
+    z-index: 3;
+}
+.biome-card.card-4 {
+    /*left: -12%;*/
+    /*top: 20%;*/
+    z-index: 2;
+}
+.biome-card.card-5 {
+    /*left: -16%;*/
+    /*top: 20%;*/
+    z-index: 1;
 }
 
 /* @TODO: USE SINGLE SPRITE-STYLE IMAGE FOR EFFICIENT LOADING */
@@ -122,4 +197,23 @@
 }
 .player-mat.zychro {
     background-image: url('img/player-mats/zychro-1000w.png');
+}
+
+.biome-card.cave {
+    background-image: url('img/biomes/cave-600w.png');
+}
+.biome-card.jungle {
+    background-image: url('img/biomes/jungle-600w.png');
+}
+.biome-card.lake {
+    background-image: url('img/biomes/lake-600w.png');
+}
+.biome-card.open-ocean {
+    background-image: url('img/biomes/open-ocean-600w.png');
+}
+.biome-card.plateau {
+    background-image: url('img/biomes/plateau-600w.png');
+}
+.biome-card.hidden-biome {
+    background-image: url('img/biomes/biome-back-420w.png');
 }

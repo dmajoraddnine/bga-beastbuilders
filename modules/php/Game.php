@@ -36,21 +36,25 @@ class Game extends \Table {
      * NOTE: afterward, you can get/set the global variables with `getGameStateValue`, `setGameStateInitialValue` or
      * `setGameStateValue` functions.
      */
-    public function __construct()
-    {
+    public function __construct() {
         parent::__construct();
 
         $this->initGameStateLabels([
+            "current_round" => 10,
+            "final_round" => 11
             // "characters" => []
-            // "my_second_global_variable" => 11,
             // "my_first_game_variant" => 100,
             // "my_second_game_variant" => 101,
         ]);        
 
         $this->animalCards = self::getNew("module.common.deck");
-        $this->animalCards->init("card");
+        $this->animalCards->init("animal_deck");
+
+        $this->biomeCards = self::getNew("module.common.deck");
+        $this->biomeCards->init("biome_deck");
 
         $this->dump('[constructor] $this->animalCards: ', $this->animalCards);
+        $this->dump('[constructor] $this->biomeCards: ', $this->biomeCards);
 
         // self::$CARD_TYPES = [
             //     1 => [
@@ -116,7 +120,8 @@ class Game extends \Table {
         $this->reloadPlayersBasicInfos();
 
         // Init global values with their initial values.
-        // $this->setGameStateInitialValue("my_first_global_variable", 0);
+        $this->setGameStateInitialValue("current_round", 0); // this is incremented in stDealCards state
+        $this->setGameStateInitialValue("final_round", 5);
 
         // create the characters
         // @TODO: READ THIS FROM JSON FILE
@@ -144,7 +149,19 @@ class Game extends \Table {
         );
 
         // create the biomes
-        // @TODO
+        // @TODO: READ THIS FROM JSON FILE
+        $biome_sql = array();
+        $biome_sql[] = "(1, 'Plateau', '1')";
+        $biome_sql[] = "(2, 'Open Ocean', '2')";
+        $biome_sql[] = "(3, 'Lake', '3')";
+        $biome_sql[] = "(4, 'Cave', '4')";
+        $biome_sql[] = "(5, 'Jungle', '5')";
+        static::DbQuery(
+            sprintf(
+                "INSERT INTO `biome` (`id`, `display_name`, `basic_buff_family_id`) VALUES %s",
+                implode(",", $biome_sql)
+            )
+        );
 
         // create the animals
         // @TODO: READ THIS FROM JSON FILE
@@ -158,15 +175,6 @@ class Game extends \Table {
             )
         );
 
-        // $animal_deck_sql = array();
-        // $animal_deck_sql[] = "('animal', 53, 'deck', 1)";
-        // $animal_deck_sql[] = "('animal', 36, 'deck', 2)";
-        // static::DbQuery(
-        //     sprintf(
-        //         "INSERT INTO `card` (`card_type`, `card_type_arg`, `card_location`, `card_location_arg`) VALUES %s",
-        //         implode(",", $animal_deck_sql)
-        //     )
-        // );
 
         // Create card objects
         $animal_cards = [];
@@ -175,7 +183,15 @@ class Game extends \Table {
         }
         $this->animalCards->createCards($animal_cards, 'deck');
 
+        // $biome_cards = [];
+        // foreach ($this->getBiomes() as $biome_id => $biome) {
+        //     $biome_cards[] = ['type' => 'biome', 'type_arg' => $biome_id, 'nbr' => 1];
+        // }
+        // $this->biomeCards->createCards($biome_cards, 'deck');
+        // $this->biomeCards->shuffle('deck');
+
         $this->dump('[setupNewGame] $this->animalCards: ', $this->animalCards);
+        // $this->dump('[setupNewGame] $this->biomeCards: ', $this->biomeCards);
 
         // Activate first player once everything has been initialized and ready.
         $this->gamestate->changeActivePlayer($player_ids[0]);
@@ -298,10 +314,18 @@ class Game extends \Table {
             $this->DbQuery($player_write);
 
             // notify
-            $this->notify->all("selectCharacter", clienttranslate('${player_name} chooses ${character_display_name}' ), array(
-                'player_name' => $this->getActivePlayerName(),
+            $selectedChar = array_filter(
+                $unassignedCharacters,
+                function ($c) use ($selectedCharacterID) { return $c['id'] === $selectedCharacterID; }
+            );
+
+            $this->dump('$selectedChar', $selectedChar);
+
+            $this->notify->all('selectCharacter', clienttranslate('${player_name} chooses ${character_display_name}'), array(
+                'player_name'  => $this->getActivePlayerName(),
+                'player_id'    => $playerID,
                 'character_id' => $selectedCharacterID,
-                'character_display_name' => array_find(Object.values($unassignedCharacters), fn ($c) { return $c['display_name']; })
+                'character_display_name' => array_shift($selectedChar)['display_name']
             ));
 
             // $this->notify->all("turnOverDiscs", '', array(
@@ -600,40 +624,46 @@ class Game extends \Table {
 
             // notify all players about new cards drawn
             $player_name = $player["player_name"];
-            $this->notify->all("cardsDrawn", clienttranslate("${player_name} draws ${qty} Animal Card" . ($qty > 1 ? 's' : '') . ' from the deck'), array(
+            $this->notify->all('cardsDrawn', clienttranslate('${player_name} draws ${qty} Animal Card' . ($qty > 1 ? 's' : '') . ' from the deck'), array(
                 "player_id" => $player_id,
                 "player_name" => $player_name,
                 "qty" => 1
             ));
         }
 
-        // $animalCards =
+        // advance the round counter
+        $this->setGameStateValue('current_round', (int)$this->getGameStateValue('current_round') + 1);
 
         $this->gamestate->nextState('handsDealt');
     }
 
     function stActivateBiome(): void {
-        // change Active Biome to next - if none set, use the first in the Biome Deck
+        $currentRound = $this->getGameStateValue('current_round');
 
-        // use a gamestate global param for this?
+        // $this->dump('[stActivateBiome] $currentRound: ', $currentRound);
 
-        // $players = $this->getPlayers();
-        // foreach ($players as $player_id => $player) {
-        //     $this->cards->pickCards($qty, 'deck', $player_id);
-
-        //     // Notify player about their cards
-        //     // $this->notify->all($player_id, 'cardsDrawn', '', ['qty' => 1]);
-
-
-        // }
+        if ($currentRound === 1) {
+            $biome_cards = [];
+            foreach ($this->getBiomes() as $biome_id => $biome) {
+                $biome_cards[] = ['type' => 'biome', 'type_arg' => $biome_id, 'nbr' => 1];
+            }
+            $this->biomeCards->createCards($biome_cards, 'deck');
+            $this->biomeCards->shuffle('deck');
+        }
 
         // notify all players about new biome
-        // $player_name = $player["player_name"];
-        // $this->notify->all("cardsDrawn", clienttranslate("${player_name} draws ${qty} Animal Card" . ($qty > 1 ? 's' : '') . ' from the deck'), array(
-        //     "player_id" => $player_id,
-        //     "player_name" => $player_name,
-        //     "qty" => 1
-        // ));
+        $newBiomeDeck = $this->getCurrentBiomeDeck();
+
+        // $this->dump('[stActivateBiome] $newBiomeDeck: ', $newBiomeDeck);
+
+        $activeBiomeCard = $newBiomeDeck[$currentRound - 1];
+        $this->notify->all("biomeActivated", clienttranslate('The new Active Biome is ${biomeName}'), array(
+            'biomeName'    => $activeBiomeCard['displayName']
+        ));
+
+
+        // @TODO: PROVIDE NEW BIOME DECK IN STATE ARGUMENT?
+
 
         $this->gamestate->nextState('biomeActivated');
     }
@@ -685,19 +715,14 @@ class Game extends \Table {
         return 0;
     }
 
-    public function getUnassignedCharacters(): array {
+    public function getUnassignedCharacters() {
         $result = [];
-
         $characters = $this->getCharacters();
         $players = $this->getPlayers();
 
         foreach ($players as $player_id => $player) {
-            $this->dump('$player', $player);
             if ($player) {
                 $selected_char = $player['selected_character_id'];
-
-                $this->dump('$selected_char', $selected_char);
-
                 if ($selected_char) {
                     unset($characters[$selected_char]);
                 }
@@ -705,6 +730,36 @@ class Game extends \Table {
         }
 
         return $characters;
+    }
+
+    public function getCurrentBiomeDeck() {
+        $biomeDeck = [];
+        $allBiomes = $this->getBiomes();
+
+        $visibleBiomeCards = $this->biomeCards->getCardsOnTop($this->getGameStateValue('current_round'), 'deck');
+        // $this->dump('[getCurrentBiomeDeck] $visibleBiomeCards: ', $visibleBiomeCards);
+
+        for ($i = 0; $i < $this->getGameStateValue('final_round'); $i++) {
+            if (array_key_exists($i, $visibleBiomeCards)) {
+                $bc = $visibleBiomeCards[$i];
+                array_push($biomeDeck, [
+                    'id'                => $bc['type_arg'],
+                    'displayName'       => $allBiomes[$bc['type_arg']]['display_name'],
+                    'basicBuffFamilyID' => $allBiomes[$bc['type_arg']]['basic_buff_family_id']
+                ]);
+            } else {
+                // push a dummy card
+                array_push($biomeDeck, [
+                    'id'                => null,
+                    'displayName'       => null,
+                    'basicBuffFamilyID' => null
+                ]);
+            }
+        }
+
+        $this->dump('[getCurrentBiomeDeck] $biomeDeck: ', $biomeDeck);
+
+        return $biomeDeck;
     }
 
     public function getCharacters() {
@@ -737,6 +792,16 @@ class Game extends \Table {
         return $animals;
     }
 
+    public function getBiomes() {
+        $biomes = $this->getCollectionFromDb(
+            "SELECT `id`, `display_name`, `basic_buff_family_id` FROM `biome`"
+        );
+
+        // $this->dump('$biomes: ', $biomes);
+
+        return $biomes;
+    }
+
     public function getFamilies() {
         $families = $this->getCollectionFromDb(
             "SELECT `id`, `display_name` FROM `family`"
@@ -764,23 +829,28 @@ class Game extends \Table {
         $result["players"] = $this->getPlayers();
         $result["characters"] = $this->getCharacters();
         $result["animals"] = $this->getAnimals();
+        // $result["biomes"] = $this->getBiomes();
 
-        $this->dump('[getAllDatas] $this->animalCards: ', $this->animalCards);
-        $this->dump('[getAllDatas] $current_player_id: ', $current_player_id);
-        // $current_player_id = (int) $this->getCurrentPlayerId();
+        // $this->dump('[getAllDatas] $this->animalCards: ', $this->animalCards);
+        // $this->dump('[getAllDatas] $current_player_id: ', $current_player_id);
 
         // Cards in current player hand
         $result["hand"] = $this->animalCards->getCardsInLocation('hand', $current_player_id);
 
-        $this->dump('[getAllDatas] $result: ', $result);
-
-        $cards = $this->getCollectionFromDb(
-            "SELECT card_id, card_type, card_type_arg, card_location, card_location_arg FROM card"
-        );
-        $this->dump('$cards: ', $cards);
+        // Currently-visible biome deck
+        $result["biomeDeck"] = $this->getCurrentBiomeDeck();
 
         // Cards played on beasts
         // $result["cardsontable"] = $this->cards->getCardsInLocation( 'cardsontable' );
+
+        $this->dump('[getAllDatas] $result: ', $result);
+
+
+        // $cards = $this->getCollectionFromDb(
+        //     "SELECT card_id, card_type, card_type_arg, card_location, card_location_arg FROM biome_deck"
+        // );
+        // $this->dump('$cards: ', $cards);
+
 
         return $result;
     }
