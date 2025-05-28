@@ -55,7 +55,10 @@ function (dojo, declare) {
                     <div id="biome-deck"></div>
                     <div id="unassigned-characters"></div>
                     <div id="player-tables"></div>
-                    <div id="current-player-hand"></div>
+                    <div id="current-player-hand">
+                        <strong class="hand-label">Your Hand</strong>
+                        <div class="content"></div>
+                    </div>
                 </div>
             `);
             
@@ -68,7 +71,7 @@ function (dojo, declare) {
                 document.getElementById('player-tables').insertAdjacentHTML('beforeend', `
                     <div id="player-table-${player.id}" class="player-table">
                         <div class="player-beast">
-                            <strong class="label">${player.name}'s Beast</strong>
+                            <strong>${player.name}'s Beast</strong>
                             <div class="content"></div>
                         </div>
                     </div>
@@ -80,18 +83,24 @@ function (dojo, declare) {
                 }
             });
 
+            // Setting up current player's hand (clickable)
             Object.values(gamedatas.hand || {}).forEach(card => {
                 const cardAnimal = Object.values(gamedatas.animals).find((a) => (a.id === card.type_arg));
 
                 // @TODO: robustify this
-                const animalSlug = cardAnimal.display_name.toLowerCase().replace(/\s/g, '');
+                const animalSlug = cardAnimal.display_name.toLowerCase().replace(/\s/g, '-');
 
-                document.getElementById('current-player-hand').insertAdjacentHTML('beforeend', `
-                    <div class="card animal-card ${animalSlug}" data-animalid="${card.type_arg}"></div>
+                document.getElementById('current-player-hand').getElementsByClassName('content')[0].insertAdjacentHTML('beforeend', `
+                    <div class="animal-wrapper" data-animalid="${card.type_arg}">
+                        <div class="card animal-card ${animalSlug}"></div>
+                    </div>
                 `);
             });
+            document.querySelectorAll('#current-player-hand .animal-wrapper').forEach(
+                element => element.addEventListener('click', e => this.onSelectAnimalFromHand(e))
+            );
 
-            // Setting up unassigned characters
+            // Setting up unassigned characters (clickable)
             Object.values(gamedatas.characters).forEach(character => {
                 document.getElementById('unassigned-characters').insertAdjacentHTML('beforeend', `
                     <div id="player-mat-${character.id}" class="player-mat ${character.slug} unassigned-player-mat hidden" data-characterid="${character.id}"></div>
@@ -119,7 +128,7 @@ function (dojo, declare) {
                         <div id="biome-card-${roundID}" class="biome-card card-${roundID} ${biomeSlug}" data-biomeid="${biome.id}"></div>
                     </div>
                 `);
-            })
+            });
 
             // Setup game notifications to handle (see "setupNotifications" method below)
             this.setupNotifications();
@@ -294,12 +303,12 @@ function (dojo, declare) {
             //         y : y
             //     });
             // },
-        onSelectCharacter: function(evt) {
+        onSelectCharacter: function (e) {
             // Stop this event propagation
-            evt.preventDefault();
-            evt.stopPropagation();
+            e.preventDefault();
+            e.stopPropagation();
 
-            const selectedCharacterID = evt.currentTarget.dataset.characterid;
+            const selectedCharacterID = e.currentTarget.dataset.characterid;
             // if (!document.getElementById(`square_${x}_${y}`).classList.contains('possibleMove')) {
             //     // This is not a possible move => the click does nothing
             //     return;
@@ -307,6 +316,22 @@ function (dojo, declare) {
 
             this.bgaPerformAction('actSelectCharacter', {
                 selectedCharacterID : selectedCharacterID
+            });
+        },
+
+        onSelectAnimalFromHand: function (e) {
+            // Stop this event propagation
+            e.preventDefault();
+            e.stopPropagation();
+
+            const selectedAnimalID = e.currentTarget.dataset.animalid;
+            // if (!document.getElementById(`square_${x}_${y}`).classList.contains('possibleMove')) {
+            //     // This is not a possible move => the click does nothing
+            //     return;
+            // }
+
+            this.bgaPerformAction('actBuildCardFromHand', {
+                selectedAnimalID : selectedAnimalID
             });
         },
 

@@ -126,26 +126,15 @@ $machinestates = [
             // "actFinalizeBeast"
         ],
         "transitions" => [
-            "beastsRemaining" => ST_BUILD_PHASE,
+            "chooseSectionToBuild" => ST_CHOOSE_SECTION_TO_BUILD,
+            // "confirmBeast" => ST_END_BUILD_PHASE,
             // "allBeastsBuilt" => ST_PLAYER_TURN,
             // "zombiePass" => ST_NEXT_PLAYER
         ]
     ],
 
-    // ST_PLAYER_TURN => [
-    //     "name" => "playerTurn",
-    //     "description" => clienttranslate('${actplayer} must play a disc'),
-    //     "descriptionmyturn" => clienttranslate('${you} must play a disc'),
-    //     "type" => "activeplayer",
-    //     "args" => "argPlayerTurn",
-    //     "possibleactions" => [
-    //         // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
-    //         "actPlayDisc"
-    //     ],
-    //     "transitions" => [
-    //         "nextPlayer" => ST_NEXT_PLAYER,
-    //         "zombiePass" => ST_NEXT_PLAYER
-    //     ]
+    // ST_CHOOSE_SECTION_TO_BUILD => [
+
     // ],
 
     // Final state. Please do not modify (and do not overload action/args methods).

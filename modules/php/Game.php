@@ -292,22 +292,23 @@ class Game extends \Table {
 
     function actSelectCharacter(string $selectedCharacterID) {
         // framework already determined if the player that sent this action is an active player
-        $playerID = intval($this->getActivePlayerId());
 
+        // ensure selected character is in the collection of unassigned characters
         $unassignedCharacters = $this->getUnassignedCharacters();
 
-        $this->dump('$selectedCharacterID', $selectedCharacterID);
-        $this->dump('$unassignedCharacters', $unassignedCharacters);
+        // $this->dump('$selectedCharacterID', $selectedCharacterID);
+        // $this->dump('$unassignedCharacters', $unassignedCharacters);
 
         $unassignedIDs = array_map(
             function ($c) { return $c['id']; },
             $unassignedCharacters
         );
 
-        $this->dump('$unassignedIDs', $unassignedIDs);
+        // $this->dump('$unassignedIDs', $unassignedIDs);
 
         if (in_array($selectedCharacterID, $unassignedIDs)) {
             // valid move
+            $playerID = intval($this->getActivePlayerId());
 
             // update player table to have character ID
             $player_write = "UPDATE player SET selected_character_id='$selectedCharacterID' WHERE (player_id) IN ('$playerID');";
@@ -319,7 +320,7 @@ class Game extends \Table {
                 function ($c) use ($selectedCharacterID) { return $c['id'] === $selectedCharacterID; }
             );
 
-            $this->dump('$selectedChar', $selectedChar);
+            // $this->dump('$selectedChar', $selectedChar);
 
             $this->notify->all('selectCharacter', clienttranslate('${player_name} chooses ${character_display_name}'), array(
                 'player_name'  => $this->getActivePlayerName(),
@@ -344,39 +345,87 @@ class Game extends \Table {
      * 2: threat
      * 3: defense
      */
-    function actBuildCardFromHand(int $selectedCardID, int $cardNewSection) {
-        // framework already determined if the player that sent this action is an active player
-        $playerID = intval($this->getCurrentPlayerId());
+    function actBuildCardFromHand(string $selectedAnimalID) {
+        // framework already determined if the current player is an active player
 
-        // update DB for this player to indicate which location & location-arg for this card
+        $this->dump('$selectedAnimalID', $selectedAnimalID);
 
-        // notify current player
+        // ensure selected animal exists in the current player's hand
+        $currentPlayerID = (int) $this->getCurrentPlayerId();
+        $currentPlayerHand = $this->animalCards->getCardsInLocation('hand', $currentPlayerID);
 
-        // notify all players
+        // $this->dump('$selectedCharacterID', $selectedCharacterID);
+        $this->dump('$currentPlayerHand', $currentPlayerHand);
 
-        // function actPlayKeep($cardId) {
-        //    $this->checkAction('actPlayKeep');
-        //    $player_id = $this->getCurrentPlayerId(); // CURRENT!!! not active
-        //    ... // some logic here
-        //    $this->gamestate->setPlayerNonMultiactive($player_id, 'next'); // deactivate player; if none left, transition to 'next' state
-        // }
+        $handAnimalIDs = array_map(
+            function ($c) { return $c['type_arg']; },
+            $currentPlayerHand
+        );
 
+        $this->dump('$handAnimalIDs', $handAnimalIDs);
 
+        if (in_array($selectedAnimalID, $handAnimalIDs)) {
+            // valid move
+
+            // mark DB with selection somehow?? or use front end state?
+
+            // update DB for this player to indicate which location & location-arg for this card
+
+            // notify current player
+
+            // function actPlayKeep($cardId) {
+            //    $this->checkAction('actPlayKeep');
+            //    $player_id = $this->getCurrentPlayerId(); // CURRENT!!! not active
+            //    ... // some logic here
+            //    $this->gamestate->setPlayerNonMultiactive($player_id, 'next'); // deactivate player; if none left, transition to 'next' state
+            // }
+
+            // transition player to "choose section" state
+            $this->gamestate->nextState('chooseSectionToBuild');
+
+        //     // update player table to have character ID
+        //     $player_write = "UPDATE player SET selected_character_id='$selectedCharacterID' WHERE (player_id) IN ('$playerID');";
+        //     $this->DbQuery($player_write);
+
+        //     // notify
+        //     $selectedChar = array_filter(
+        //         $unassignedCharacters,
+        //         function ($c) use ($selectedCharacterID) { return $c['id'] === $selectedCharacterID; }
+        //     );
+
+        //     $this->dump('$selectedChar', $selectedChar);
+
+        //     $this->notify->all('selectCharacter', clienttranslate('${player_name} chooses ${character_display_name}'), array(
+        //         'player_name'  => $this->getActivePlayerName(),
+        //         'player_id'    => $playerID,
+        //         'character_id' => $selectedCharacterID,
+        //         'character_display_name' => array_shift($selectedChar)['display_name']
+        //     ));
+
+        //     // $this->notify->all("turnOverDiscs", '', array(
+        //     //     'player_id' => $playerID,
+        //     //     'turnedOver' => $turnedOverDiscs
+        //     // ));
+
+        //     $this->gamestate->nextState('characterSelected');
+        } else {
+            throw new \BgaSystemException("Impossible move");
+        }
     }
 
     // public function actPass(): void
-    // {
-    //     // Retrieve the active player ID.
-    //     $player_id = (int)$this->getActivePlayerId();
+        // {
+        //     // Retrieve the active player ID.
+        //     $player_id = (int)$this->getActivePlayerId();
 
-    //     // Notify all players about the choice to pass.
-    //     $this->notify->all("pass", clienttranslate('${player_name} passes'), [
-    //         "player_id" => $player_id,
-    //         "player_name" => $this->getActivePlayerName(), // remove this line if you uncomment notification decorator
-    //     ]);
+        //     // Notify all players about the choice to pass.
+        //     $this->notify->all("pass", clienttranslate('${player_name} passes'), [
+        //         "player_id" => $player_id,
+        //         "player_name" => $this->getActivePlayerName(), // remove this line if you uncomment notification decorator
+        //     ]);
 
-    //     // at the end of the action, move to the next state
-    //     $this->gamestate->nextState("pass");
+        //     // at the end of the action, move to the next state
+        //     $this->gamestate->nextState("pass");
     // }
 
     // return array of disc coords. that would be turned over if a new disc placed at (x, y) location for given player
@@ -489,57 +538,6 @@ class Game extends \Table {
 
         return $results;
     }
-
-    /*
-        [
-            x1 => [
-                y1 => flipCount1,
-                y2 => flipCount2
-            ],
-            x2 => [
-                y1 => flipCount4,
-                y2 => flipCount5
-            ],
-            x3 => [
-                y3 => flipCount3
-            ],
-            ...
-        ]
-    */
-    // public function getPossibleMoves($playerID): array {
-        //     $MOVE_DIRECTIONS = [
-        //         [-1, 0],
-        //         [-1, 1],
-        //         [0, 1],
-        //         [1, 1],
-        //         [1, 0],
-        //         [1, -1],
-        //         [0, -1],
-        //         [-1, -1]
-        //     ];
-        //     $resultMoves = [];
-
-        //     $board = $this->getBoardPieces();
-
-        //     for ($x = 1; $x < 9; $x++) {
-        //         for ($y = 1; $y < 9; $y++) {
-        //             $flippedDiscs = $this->getTurnedOverDiscs($board, $x, $y, $playerID);
-        //             if (count($flippedDiscs) > 0) {
-        //                 if (!array_key_exists($x, $resultMoves)) {
-        //                     $resultMoves[$x] = array();
-        //                 }
-        //                 // add possible move for specified player to result-moves set
-        //                 $resultMoves[$x][$y] = $flippedDiscs;
-        //             }
-        //         }
-        //     }
-
-        //     return $resultMoves;
-    // }
-
-
-
-
 
 
     /**

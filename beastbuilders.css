@@ -53,6 +53,10 @@
     height: auto; /* core library bugfix or-what??? */
 }
 
+#board {
+    padding: 12px;
+}
+
 /*
     #board {
         width: 536px;
@@ -98,7 +102,7 @@
 }
 
 .player-table {
-    flex-grow: 1;
+    /*flex-grow: 1;*/
     text-align: center;
     position: relative;
 }
@@ -117,9 +121,10 @@
 }
 
 .player-mat {
-    width: 100%;
+    flex-grow: 1;
     background-size: contain;
     background-repeat: no-repeat;
+    background-position: center;
     min-height: 248px;
 }
 
@@ -133,7 +138,7 @@
     border: solid 2px grey;
     border-radius: 40px;
     gap: 8px;
-    background-color: rgba(0,0,0,0.3);
+    background-color: rgba(255,255,255,0.6);
 }
 .biome-wrapper {
     display: flex;
@@ -143,40 +148,65 @@
     flex-grow: 1;
 }
 .biome-label {
+    margin-bottom: 8px;
     font-weight: bold;
 }
 .biome-card {
-    flex-grow: 1;
     background-size: contain;
     background-repeat: no-repeat;
     min-height: 160px;
-    position: relative;
-    margin-top: 8px;
     background-position: center;
 }
 .biome-card.card-1 {
-    /*position: relative;*/
     z-index: 5;
 }
 .biome-card.card-2 {
-    /*left: -4%;*/
-    /*top: 20%;*/
     z-index: 4;
 }
 .biome-card.card-3 {
-    /*left: -8%;*/
-    /*top: 20%;*/
     z-index: 3;
 }
 .biome-card.card-4 {
-    /*left: -12%;*/
-    /*top: 20%;*/
     z-index: 2;
 }
 .biome-card.card-5 {
-    /*left: -16%;*/
-    /*top: 20%;*/
     z-index: 1;
+}
+
+/**
+ * ANIMALS
+ */
+#current-player-hand {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 20px;
+    border: solid 2px grey;
+    border-radius: 40px;
+    gap: 8px;
+    background-color: rgba(255,255,255,0.6);
+    text-align: center;
+    margin-top: 12px;
+}
+#current-player-hand .content {
+    display: flex;
+    justify-content: center;
+}
+.animal-wrapper {
+    /*display: flex;*/
+    /*flex-direction: column;*/
+    /*justify-content: center;*/
+    /*text-align: center;*/
+    flex-grow: 1;
+    max-width: 200px;
+    cursor: pointer;
+}
+.animal-card {
+    /*flex-grow: 1;*/
+    background-size: contain;
+    background-repeat: no-repeat;
+    min-height: 280px;
+    margin-top: 8px;
+    background-position: center;
 }
 
 /* @TODO: USE SINGLE SPRITE-STYLE IMAGE FOR EFFICIENT LOADING */
@@ -216,4 +246,11 @@
 }
 .biome-card.hidden-biome {
     background-image: url('img/biomes/biome-back-420w.png');
+}
+
+.animal-card.poison-dart-frog {
+    background-image: url('img/animals/herptile/300w/poison-dart-frog-300w.png');
+}
+.animal-card.giant-panda {
+    background-image: url('img/animals/mammal/300w/giant-panda-300w.png');
 }
