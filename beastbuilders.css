@@ -55,6 +55,17 @@
 
 #board {
     padding: 12px;
+    position: relative;
+}
+
+.image-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.image-wrapper img {
+    width: 100%;
 }
 
 /*
@@ -88,13 +99,15 @@
     }
 */
 
+/**
+ * PLAYERS/BEASTS
+ */
 #player-tables {
     display: grid;
-    /*justify-content: center;*/
     grid-template-columns: 1fr 1fr;
     gap: 20px;
     width: 100%;
-    max-width: 1000px;
+    max-width: 1220px;
     min-height: 248px;
     margin-left: auto;
     margin-right: auto;
@@ -102,7 +115,6 @@
 }
 
 .player-table {
-    /*flex-grow: 1;*/
     text-align: center;
     position: relative;
 }
@@ -115,17 +127,54 @@
     max-width: 1000px;
     margin-left: auto;
     margin-right: auto;
+    margin-top: 20px;
+    position: relative;
 }
 #unassigned-characters .player-mat {
     cursor: pointer;
 }
 
+.player-mat-wrapper {
+    position: relative;
+}
+
 .player-mat {
     flex-grow: 1;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    min-height: 248px;
+    position: relative;
+}
+
+
+
+.player-beast .beast-sections {
+    display: flex;
+    margin-bottom: 8px;
+    margin-top: 8px;
+    gap: 8px;
+}
+.player-beast .beast-sections .section {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.player-beast .player-mat {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.player-beast .empty-background {
+    /*border: dotted 2px #333;*/
+    border-radius: 8px;
+    width: 100%;
+    min-height: 128px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.player-beast .empty-background strong {
+    position: absolute;
 }
 
 /**
@@ -152,10 +201,7 @@
     font-weight: bold;
 }
 .biome-card {
-    background-size: contain;
-    background-repeat: no-repeat;
     min-height: 160px;
-    background-position: center;
 }
 .biome-card.card-1 {
     z-index: 5;
@@ -177,6 +223,7 @@
  * ANIMALS
  */
 #current-player-hand {
+    position: relative;
     display: flex;
     flex-direction: column;
     padding: 8px 20px;
@@ -190,45 +237,24 @@
 #current-player-hand .content {
     display: flex;
     justify-content: center;
+    gap: 8px;
+}
+.player-board .animal-wrapper {
+    position: absolute;
+    z-index: 10;
 }
 .animal-wrapper {
-    /*display: flex;*/
-    /*flex-direction: column;*/
-    /*justify-content: center;*/
-    /*text-align: center;*/
     flex-grow: 1;
     max-width: 200px;
     cursor: pointer;
+    position: relative;
 }
 .animal-card {
-    /*flex-grow: 1;*/
-    background-size: contain;
-    background-repeat: no-repeat;
     min-height: 280px;
     margin-top: 8px;
-    background-position: center;
 }
 
 /* @TODO: USE SINGLE SPRITE-STYLE IMAGE FOR EFFICIENT LOADING */
-.player-mat.vortek {
-    background-image: url('img/player-mats/vortek-1000w.png');
-}
-.player-mat.ko {
-    background-image: url('img/player-mats/ko-1000w.png');
-}
-.player-mat.eth1 {
-    background-image: url('img/player-mats/eth1-1000w.png');
-}
-.player-mat.taaq {
-    background-image: url('img/player-mats/taaq-1000w.png');
-}
-.player-mat.atomizer {
-    background-image: url('img/player-mats/atomizer-1000w.png');
-}
-.player-mat.zychro {
-    background-image: url('img/player-mats/zychro-1000w.png');
-}
-
 .biome-card.cave {
     background-image: url('img/biomes/cave-600w.png');
 }

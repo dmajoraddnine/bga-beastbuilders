@@ -29,6 +29,11 @@ function (dojo, declare) {
             // Here, you can init the global variables of your user interface
             // Example:
             // this.myGlobalValue = 0;
+
+            this.handleBuildAnimalClick = this.onSelectAnimalFromHand.bind(this);
+            this.handleSelectCharacterClick = this.onSelectCharacter.bind(this);
+
+            this.notifqueue.setIgnoreNotificationCheck('cardsDrawn', (notif) => (notif.args.player_id === this.player_id));
         },
         
         /*
@@ -63,6 +68,7 @@ function (dojo, declare) {
             `);
             
             // Setting up player areas
+            const emptyCardPath = g_gamethemeurl + 'img/empty-card-frame-300w.png';
             Object.values(gamedatas.players).forEach(player => {
                 this.getPlayerPanelElement(player.id).insertAdjacentHTML('beforeend', `
                     <div id="player-counter-${player.id}">A player counter</div>
@@ -72,7 +78,34 @@ function (dojo, declare) {
                     <div id="player-table-${player.id}" class="player-table">
                         <div class="player-beast">
                             <strong>${player.name}'s Beast</strong>
-                            <div class="content"></div>
+                            <div class="content">
+                                <div class="beast-sections">
+                                    <div class="section speed-section">
+                                        <div class="empty-background image-wrapper">
+                                            <strong>Speed</strong>
+                                            <img src="${emptyCardPath}" />
+                                        </div>
+                                    </div>
+                                    <div class="section threat-section">
+                                        <div class="empty-background image-wrapper">
+                                            <strong>Threat</strong>
+                                            <img src="${emptyCardPath}" />
+                                        </div>
+                                    </div>
+                                    <div class="section defense-section">
+                                        <div class="empty-background image-wrapper">
+                                            <strong>Defense</strong>
+                                            <img src="${emptyCardPath}" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="player-mat-wrapper-${player.id}" class="player-mat-wrapper">
+                                    <div class="empty-background image-wrapper">
+                                        <strong>Player Character</strong>
+                                        <img src="${g_gamethemeurl}img/empty-mat-frame-1000w.png" />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `);
@@ -84,48 +117,53 @@ function (dojo, declare) {
             });
 
             // Setting up current player's hand (clickable)
+            const playerHandNode = document.getElementById('current-player-hand').getElementsByClassName('content')[0];
             Object.values(gamedatas.hand || {}).forEach(card => {
-                const cardAnimal = Object.values(gamedatas.animals).find((a) => (a.id === card.type_arg));
-
-                // @TODO: robustify this
-                const animalSlug = cardAnimal.display_name.toLowerCase().replace(/\s/g, '-');
-
-                document.getElementById('current-player-hand').getElementsByClassName('content')[0].insertAdjacentHTML('beforeend', `
-                    <div class="animal-wrapper" data-animalid="${card.type_arg}">
-                        <div class="card animal-card ${animalSlug}"></div>
-                    </div>
-                `);
+                this.insertHandCard(playerHandNode, card.type_arg);
             });
-            document.querySelectorAll('#current-player-hand .animal-wrapper').forEach(
-                element => element.addEventListener('click', e => this.onSelectAnimalFromHand(e))
-            );
+            // document.querySelectorAll('#current-player-hand .animal-wrapper').forEach(
+            //     element => element.addEventListener('click', this.handleBuildAnimalClick)
+            // );
 
             // Setting up unassigned characters (clickable)
             Object.values(gamedatas.characters).forEach(character => {
+                // @TODO: ADJUST NOMENCLATURE?
                 document.getElementById('unassigned-characters').insertAdjacentHTML('beforeend', `
-                    <div id="player-mat-${character.id}" class="player-mat ${character.slug} unassigned-player-mat hidden" data-characterid="${character.id}"></div>
+                    <div id="player-mat-${character.id}"
+                        class="player-mat ${character.slug} unassigned-player-mat image-wrapper hidden"
+                        data-characterid="${character.id}"
+                    >
+                        <img src="${g_gamethemeurl}img/player-mats/${character.slug}-1000w.png" />
+                    </div>
                 `);
             });
             document.querySelectorAll('#unassigned-characters .player-mat').forEach(
-                element => element.addEventListener('click', e => this.onSelectCharacter(e))
+                element => element.addEventListener('click', this.handleSelectCharacterClick)
             );
 
             // Setting up biome deck
             Object.values(gamedatas.biomeDeck).forEach((biome, i) => {
                 const roundID = i + 1;
-                let biomeSlug;
+                let biomeURI = `${g_gamethemeurl}img/biomes/`;
                 if (biome.id) {
                     // @TODO: robustify this
-                    biomeSlug = biome.displayName.toLowerCase().replace(/\s/g, '-');
+                    const biomeSlug = biome.displayName.toLowerCase().replace(/\s/g, '-');
+                    biomeURI += `${biomeSlug}-420w.png`;
                 } else {
-                    biomeSlug = 'hidden-biome';
+                    biomeURI += 'biome-back-420w.png';
                 }
                 document.getElementById('biome-deck').insertAdjacentHTML('beforeend', `
                     <div class="biome-wrapper">
                         <div class="biome-label">
                             Round ${roundID} Biome
                         </div>
-                        <div id="biome-card-${roundID}" class="biome-card card-${roundID} ${biomeSlug}" data-biomeid="${biome.id}"></div>
+                        <div
+                            id="biome-card-${roundID}"
+                            class="biome-card card-${roundID} image-wrapper"
+                            data-biomeid="${biome.id}"
+                        >
+                            <img src="${biomeURI}" />
+                        </div>
                     </div>
                 `);
             });
@@ -148,7 +186,7 @@ function (dojo, declare) {
         onEnteringState: function(stateName, args) {
             console.log('Entering state: ' + stateName, args);
             
-            const currentPlayerIsActive = this.isCurrentPlayerActive();
+            // const currentPlayerIsActive = this.isCurrentPlayerActive();
 
             switch(stateName) {
                 case 'assignCharacters':
@@ -161,13 +199,20 @@ function (dojo, declare) {
                     // hide the remaining characters from assign-step (better place to do this?)
                     this.showUnassignedCharacters([]);
                     break;
+                case 'playerBuildStep':
+                    break;
+                case 'chooseBuildAnimal':
+                    this.attachBuildAnimalHandlers();
+                    break;
+                case 'chooseBuildSection':
+                    break;
             }
         },
 
         // onLeavingState: this method is called each time we are leaving a game state.
         //                 You can use this method to perform some user interface changes at this moment.
         //
-        onLeavingState: function( stateName ) {
+        onLeavingState: function(stateName) {
             console.log('Leaving state: ' + stateName);
             
             switch(stateName) {
@@ -178,6 +223,9 @@ function (dojo, declare) {
                         dojo.style( 'my_html_block_id', 'display', 'none' );
                         break;
                 */
+            case 'chooseBuildAnimal':
+                this.detachBuildAnimalHandlers();
+                break;
             case 'dummy':
                 break;
             }               
@@ -207,6 +255,12 @@ function (dojo, declare) {
 
                         // this.statusBar.addActionButton(_('Pass'), () => this.bgaPerformAction("actPass"), { color: 'secondary' });
                         break;
+                    case 'playerBuildStep':
+                        this.statusBar.addActionButton(
+                            _('Build Animal from hand'),
+                            () => this.bgaPerformAction('actSelectBuild')
+                        );
+                        break;
                 }
             }
         },        
@@ -214,14 +268,43 @@ function (dojo, declare) {
         ///////////////////////////////////////////////////
         //// Utility methods
         
-        insertPlayerMat: function (playerID, characterID, characterSlug) {
-            const playerBeastNode = document.getElementById(`player-table-${playerID}`).getElementsByClassName('content')[0];
+        insertPlayerMat: function(playerID, characterID, characterSlug) {
+            const playerBeastNode = document.getElementById(`player-table-${playerID}`).getElementsByClassName('player-mat-wrapper')[0];
             playerBeastNode.insertAdjacentHTML('beforeend',
                 `<div id="beast-player-mat-${playerID}"
-                    class="player-mat ${characterSlug}"
+                    class="player-mat ${characterSlug} image-wrapper"
                     data-playerid="${playerID}"
                     data-characterid="${characterID}"
-                ></div>`
+                >
+                    <img src="${g_gamethemeurl}img/player-mats/${characterSlug}-1000w.png" />
+                </div>`
+            );
+        },
+
+        insertHandCard: function(parentNode, animalID) {
+            const cardAnimal = Object.values(this.gamedatas.animals).find((a) => (a.id === animalID));
+            const animalFamily = Object.values(this.gamedatas.families).find((f) => (f.id === cardAnimal.family_id));
+
+            // @TODO: robustify this
+            const animalSlug = cardAnimal.display_name.toLowerCase().replace(/\s/g, '-');
+            const familySlug = animalFamily.display_name.toLowerCase().replace(/\s/g, '-');
+
+            parentNode.insertAdjacentHTML('beforeend', `
+                <div id="animal-card-${animalID}" class="animal-wrapper image-wrapper" data-animalid="${animalID}">
+                    <img src="${g_gamethemeurl}img/animals/${familySlug}/300w/${animalSlug}-300w.png" />
+                </div>
+            `);
+        },
+
+        attachBuildAnimalHandlers: function() {
+            document.querySelectorAll('#current-player-hand .animal-wrapper').forEach(
+                element => element.addEventListener('click', this.handleBuildAnimalClick)
+            );
+        },
+
+        detachBuildAnimalHandlers: function() {
+            document.querySelectorAll('#current-player-hand .animal-wrapper').forEach(
+                element => element.removeEventListener('click', this.handleBuildAnimalClick)
             );
         },
 
@@ -239,19 +322,6 @@ function (dojo, declare) {
             //     await this.bgaPlayDojoAnimation(anim);
         // },
 
-        // updatePossibleMoves: function(possibleMoves) {
-            //     // Remove current possible moves
-            //     document.querySelectorAll('.possibleMove').forEach(div => div.classList.remove('possibleMove'));
-
-            //     for (var x in possibleMoves) {
-            //         for (var y in possibleMoves[x]) {
-            //             // x,y is a possible move
-            //             document.getElementById(`square_${x}_${y}`).classList.add('possibleMove');
-            //         }
-            //     }
-
-            //     this.addTooltipToClass('possibleMove', '', _('Place a disc here'));
-        // },
         showUnassignedCharacters: function(unassignedCharacters) {
             const charactersToShow = unassignedCharacters.map((c) => c.id);
 
@@ -271,14 +341,11 @@ function (dojo, declare) {
         //// Player's action
         
         /*
-        
-            Here, you are defining methods to handle player's action (ex: results of mouse click on 
-            game objects).
+            Here, you are defining methods to handle player's action (ex: results of mouse click on game objects).
             
             Most of the time, these methods:
             _ check the action is possible at this game state.
             _ make a call to the game server
-        
         */
         
         // Example:
@@ -325,16 +392,11 @@ function (dojo, declare) {
             e.stopPropagation();
 
             const selectedAnimalID = e.currentTarget.dataset.animalid;
-            // if (!document.getElementById(`square_${x}_${y}`).classList.contains('possibleMove')) {
-            //     // This is not a possible move => the click does nothing
-            //     return;
-            // }
 
-            this.bgaPerformAction('actBuildCardFromHand', {
+            this.bgaPerformAction('actChooseBuildAnimal', {
                 selectedAnimalID : selectedAnimalID
             });
         },
-
 
         
         ///////////////////////////////////////////////////
@@ -345,7 +407,7 @@ function (dojo, declare) {
             
             In this method, you associate each of your game notifications with your local method to handle it.
             
-            Note: game notification names correspond to "notifyAllPlayers" and "notifyPlayer" calls in your beastbuilders.game.php file.
+            Note: game notification names correspond to "notifyAllPlayers" and "notifyPlayer" calls in your Game.php file.
         */
         setupNotifications: function() {
             console.log( 'notifications subscriptions setup' );
@@ -364,42 +426,63 @@ function (dojo, declare) {
             // dojo.subscribe( 'cardPlayed', this, "notif_cardPlayed" );
             // this.notifqueue.setSynchronous( 'cardPlayed', 3000 );
             // 
-        },  
-        
-        // TODO: from this point and below, you can write your game notifications handling methods
-        
-        // 'player_id' =>
-        // 'character_id' =>
-        // 'character_display_name' =>
+        },
+
+        /**
+         * A player just selected a character (could be any player)
+         */
         notif_selectCharacter: async function(args) {
             // const unassignedCharacterNodes = document.querySelectorAll('#unassigned-characters .unassigned-player-mat');
             const character = Object.values(this.gamedatas.characters).find((c) => c.id === args.character_id);
 
-            // do not play animations if the animations aren't activated (fast replay mode)
-            if (!this.bgaAnimationsActive()) {
-                // @TODO: TEST THIS
-                return Promise.resolve();
-            }
+            // do not animate if the animations aren't activated (fast replay mode)
+            // if (!this.bgaAnimationsActive()) {
+            //     // @TODO: TEST THIS
+            //     return Promise.resolve();
+            // }
 
-            // slide selected player mat to the player table area
+            const playerMatID = `player-mat-${args.character_id}`;
+            const matWrapperID = `player-mat-wrapper-${args.player_id}`;
+            const playerMatNode = document.getElementById(playerMatID);
 
-            // this.placeOnObject(`beast-player-mat-${args.player_id}`, 'overall_player_board_' + args.player_id);
-
-            const anim = this.slideToObject(`player-mat-${args.character_id}`, `player-table-${args.player_id}`);
+            // remove old click handler & slide to new position
+            playerMatNode.removeEventListener('click', this.handleSelectCharacterClick);
+            playerMatNode.classList.remove('unassigned-player-mat');
+            const anim = this.slideToObject(playerMatID, matWrapperID);
             await this.bgaPlayDojoAnimation(anim);
 
-            // add new element for character mat in player's table area
-            this.insertPlayerMat(args.player_id, character.id, character.slug);
+            // move clicked element to new DOM parent & clear animation styles
+            document.getElementById(matWrapperID).appendChild(playerMatNode);
+            playerMatNode.style.top = 0;
+            playerMatNode.style.left = 0;
+        },
 
-            // hide the already-clicked player mat element
-            document.getElementById(`player-mat-${args.character_id}`).classList.add('hidden');
+        notif_newHand: async function(args) {
+            const currentPlayerID = this.gamedatas.currentPlayerID;
 
-            // document.getElementById('discs').insertAdjacentHTML(
-            //     'beforeend',
-            //     `<div class="disc" data-color="${color}" id="disc_${x}${y}"></div>`
-            // );
-            // this.placeOnObject(`disc_${x}${y}`, 'overall_player_board_' + player);
-            // const anim = this.slideToObject(`disc_${x}${y}`, 'square_' + x + '_' + y );
+            // do not animate if the animations aren't activated (fast replay mode)
+            // if (!this.bgaAnimationsActive()) {
+            //     // @TODO: TEST THIS
+            //     return Promise.resolve();
+            // }
+
+            const playerBoardNode = document.getElementById(`overall_player_board_${currentPlayerID}`);
+            const playerHandNode = document.getElementById('current-player-hand').getElementsByClassName('content')[0];
+
+            args.newCards.forEach(async (c, i) => {
+                // insert new card and slide to new position
+                const animalCardID = `animal-card-${c.type_arg}`;
+                this.insertHandCard(playerBoardNode, c.type_arg);
+
+                const anim = this.slideToObject(animalCardID, 'current-player-hand', 500, i * 250);
+                await this.bgaPlayDojoAnimation(anim);
+
+                // move clicked element to new DOM parent & clear animation styles
+                const animalCardNode = document.getElementById(animalCardID);
+                playerHandNode.appendChild(animalCardNode);
+                animalCardNode.style.top = 0;
+                animalCardNode.style.left = 0;
+            });
         },
 
         // notif_playDisc: async function(args) {
@@ -409,36 +492,36 @@ function (dojo, declare) {
         //     await this.addDiscOnBoard(args.x, args.y, args.player_id);
         // },
 
-        notif_turnOverDiscs: async function(args) {
-            // Get the color of the player who is returning the discs
-            const targetColor = this.gamedatas.players[args.player_id].color;
+        // notif_turnOverDiscs: async function(args) {
+        //     // Get the color of the player who is returning the discs
+        //     const targetColor = this.gamedatas.players[args.player_id].color;
 
-            // wait for the animations of all turned discs to be over before considering the notif done
-            await Promise.all(
-                args.turnedOver.map(disc => this.animateTurnOverDisc(disc, targetColor))
-            );
-        },
+        //     // wait for the animations of all turned discs to be over before considering the notif done
+        //     await Promise.all(
+        //         args.turnedOver.map(disc => this.animateTurnOverDisc(disc, targetColor))
+        //     );
+        // },
 
-        animateTurnOverDisc: async function(disc, targetColor) {
-            const discDiv = document.getElementById(`disc_${disc.x}${disc.y}`);
+        // animateTurnOverDisc: async function(disc, targetColor) {
+        //     const discDiv = document.getElementById(`disc_${disc.x}${disc.y}`);
 
-            if (!this.bgaAnimationsActive()) {
-                // do not play animations if the animations aren't activated (fast replay mode)
-                discDiv.dataset.color = targetColor;
-                return Promise.resolve();
-            }
+        //     if (!this.bgaAnimationsActive()) {
+        //         // do not play animations if the animations aren't activated (fast replay mode)
+        //         discDiv.dataset.color = targetColor;
+        //         return Promise.resolve();
+        //     }
 
-            // Make the disc blink 2 times
-            const anim = dojo.fx.chain( [
-                dojo.fadeOut( {
-                                node: discDiv,
-                                onEnd: () => discDiv.dataset.color = targetColor,
-                            } ),
-                dojo.fadeIn( { node: discDiv } )
-            ] ); // end of dojo.fx.chain
+        //     // Make the disc blink 2 times
+        //     const anim = dojo.fx.chain( [
+        //         dojo.fadeOut( {
+        //                         node: discDiv,
+        //                         onEnd: () => discDiv.dataset.color = targetColor,
+        //                     } ),
+        //         dojo.fadeIn( { node: discDiv } )
+        //     ] ); // end of dojo.fx.chain
 
-            await this.bgaPlayDojoAnimation(anim);
-        },
+        //     await this.bgaPlayDojoAnimation(anim);
+        // },
 
         notif_newScores: async function(args) {
             for (const player_id in args.scores) {

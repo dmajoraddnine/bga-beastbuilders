@@ -36,10 +36,15 @@ CREATE TABLE IF NOT EXISTS `family` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
+-- @TODO: BREAK UP SECTIONS INTO SUBTABLES
 CREATE TABLE IF NOT EXISTS `animal` (
   `id`           int(10) unsigned NOT NULL,
   `display_name` varchar(256) NOT NULL,
   `family_id`    int(10) unsigned NOT NULL,
+  `speed`        int(2) unsigned NOT NULL,
+  `behavior`     varchar(32) NOT NULL,
+  `threat`       varchar(32) NOT NULL,
+  `defense`      varchar(32) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -55,11 +60,12 @@ CREATE TABLE IF NOT EXISTS `character` (
 
 -- @TODO: is it possible to use 1 table for all cards?
 CREATE TABLE IF NOT EXISTS animal_deck (
-  card_id           int(10) unsigned NOT NULL AUTO_INCREMENT,
-  card_type         varchar(16) NOT NULL,
-  card_type_arg     int(11) NOT NULL,
-  card_location     varchar(16) NOT NULL,
-  card_location_arg int(11) NOT NULL,
+  card_id             int(10) unsigned NOT NULL AUTO_INCREMENT,
+  card_type           varchar(16) NOT NULL,
+  card_type_arg       int(11) NOT NULL,
+  card_location       varchar(16) NOT NULL,
+  card_location_arg   int(11) NOT NULL,
+  card_pending_action varchar(16) NULL,
   PRIMARY KEY (card_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 

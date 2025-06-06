@@ -108,34 +108,86 @@ $machinestates = [
         "updateGameProgression" => true,
         "transitions" => [
             // "playerSelection" => ST_CHOOSE_BIOME,
-            "biomeActivated" => ST_BUILD_PHASE
+            "biomeActivated" => ST_BEGIN_BUILD_PHASE
         ]
     ],
 
-    ST_BUILD_PHASE => [
-        "name" => "buildPhase",
+    ST_BEGIN_BUILD_PHASE => [
+        "name" => "beginBuildPhase",
         "type" => "multipleactiveplayer",
-        "action" => "stBuildPhase",
-        "args" => "argBuildPhase",
         "description" => clienttranslate('Other players must build their Beast'),
-        "descriptionmyturn" => clienttranslate('${you} must build your Beast'),
+        "descriptionmyturn" => "N/A",
+        "initialprivate" => ST_PLAYER_BUILD_STEP,
+        // "args" => "argBuildPhase",
+        "action" => "stBeginBuildPhase",
         "possibleactions" => [
-            // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
-            "actBuildCardFromHand",
-            // "actSwapCardsInBeast",
-            // "actFinalizeBeast"
+            // @TODO: allow player to change their mind after passing?
         ],
         "transitions" => [
-            "chooseSectionToBuild" => ST_CHOOSE_SECTION_TO_BUILD,
+            // "chooseSectionToBuild" => ST_CHOOSE_SECTION_TO_BUILD,
             // "confirmBeast" => ST_END_BUILD_PHASE,
-            // "allBeastsBuilt" => ST_PLAYER_TURN,
+            "allBeastsBuilt" => ST_PLAYER_TURN
             // "zombiePass" => ST_NEXT_PLAYER
         ]
     ],
 
-    // ST_CHOOSE_SECTION_TO_BUILD => [
+    ST_PLAYER_BUILD_STEP => [
+        "name" => "playerBuildStep",
+        "type" => "private",
+        "description" => "N/A",
+        "descriptionmyturn" => clienttranslate('${you} must build your Beast'),
+        // "args" => "argPlayerBuildStep",
+        "action" => "stPlayerBuildStep",
+        "possibleactions" => [
+            "actSelectBuild"
+            // "actSelectSwap",
+            // "actFinalizeBeast"
+        ],
+        "transitions" => [
+            "chooseBuildAnimal" => ST_CHOOSE_BUILD_ANIMAL,
+            // "chooseSwapAnimals" => ST_CHOOSE_SWAP_ANIMALS
+            "finalizeBeast" => ST_END_BUILD_PHASE
+            // "zombiePass" => ST_NEXT_PLAYER
+        ]
+    ],
 
-    // ],
+    ST_CHOOSE_BUILD_ANIMAL => [
+        "name" => "chooseBuildAnimal",
+        "descriptionmyturn" => clienttranslate('Choose an Animal from your hand'),
+        "type" => "private",
+        // "args" => "argChooseBuildAnimal",
+        // "action" => "stChooseBuildAnimal",
+        "possibleactions" => [
+            "actChooseBuildAnimal"
+            // "actBack"
+        ],
+        "transitions" => [
+            "chooseBuildSection" => ST_CHOOSE_BUILD_SECTION
+        ]
+    ],
+
+    ST_CHOOSE_BUILD_SECTION => [
+        "name" => "chooseBuildSection",
+        "descriptionmyturn" => clienttranslate('Choose a section of your Beast to attach new Animal'),
+        "type" => "private",
+        "args" => "argChooseBuildSection",
+        // "action" => "stChooseBuildSection",
+        "possibleactions" => [
+            "actChooseBuildSection"
+            // "actBack"
+        ],
+        "transitions" => [
+            "playerBuildStep" => ST_PLAYER_BUILD_STEP
+        ]
+    ],
+
+    ST_END_BUILD_PHASE => [
+
+    ],
+
+    ST_PLAYER_TURN => [
+
+    ],
 
     // Final state. Please do not modify (and do not overload action/args methods).
     ST_END_GAME => [

@@ -166,11 +166,21 @@ class Game extends \Table {
         // create the animals
         // @TODO: READ THIS FROM JSON FILE
         $animal_sql = array();
-        $animal_sql[] = "(53, 'Giant Panda', 5)";
-        $animal_sql[] = "(36, 'Poison Dart Frog', 3)";
+        $animal_sql[] = "(53, 'Giant Panda', 5, 9, 'Camouflage', 'Crush', 'Large Size')";
+        $animal_sql[] = "(31, 'Chameleon',  3, 8,   'Camouflage',  'Pierce', 'Spines')";
+        $animal_sql[] = "(32, 'Galapagos Tortoise', 3,   10,  'Scavenge',    'Crush', 'Armor')";
+        $animal_sql[] = "(33, 'Green Anaconda', 3, 8,   'Mammal Predator',    'Crush', 'Armor')";
+        $animal_sql[] = "(34, 'Horned Lizard', 3, 3,   'Distraction', 'Toxin', 'Spines')";
+        $animal_sql[] = "(35, 'Komodo Dragon', 3,  8,  'Bird Predator',    'Crush', 'Armor')";
+        $animal_sql[] = "(36, 'Poison Dart Frog', 3, 3, 'Camouflage', 'Toxin', 'Small Size')";
+        $animal_sql[] = "(37, 'Saltwater Crocodile', 3, 6,  'Herptile Predator',    'Slash', 'Armor')";
+        $animal_sql[] = "(38, 'Spiny Turtle', 3, 10,  'Scavenge',    'Crush', 'Spines')";
+        $animal_sql[] = "(39, 'Thorny Devil', 3, 6, 'Invertebrate Predator', 'Pierce', 'Spines')";
+        $animal_sql[] = "(40, 'Western Rattlesnake', 3, 2, 'Distraction', 'Toxin', 'Armor')";
+
         static::DbQuery(
             sprintf(
-                "INSERT INTO `animal` (`id`, `display_name`, `family_id`) VALUES %s",
+                "INSERT INTO `animal` (`id`, `display_name`, `family_id`, `speed`, `behavior`, `threat`, `defense`) VALUES %s",
                 implode(",", $animal_sql)
             )
         );
@@ -183,15 +193,7 @@ class Game extends \Table {
         }
         $this->animalCards->createCards($animal_cards, 'deck');
 
-        // $biome_cards = [];
-        // foreach ($this->getBiomes() as $biome_id => $biome) {
-        //     $biome_cards[] = ['type' => 'biome', 'type_arg' => $biome_id, 'nbr' => 1];
-        // }
-        // $this->biomeCards->createCards($biome_cards, 'deck');
-        // $this->biomeCards->shuffle('deck');
-
         $this->dump('[setupNewGame] $this->animalCards: ', $this->animalCards);
-        // $this->dump('[setupNewGame] $this->biomeCards: ', $this->biomeCards);
 
         // Activate first player once everything has been initialized and ready.
         $this->gamestate->changeActivePlayer($player_ids[0]);
@@ -216,6 +218,22 @@ class Game extends \Table {
         // Get some values from the current game situation from the database.
         return [
             // 'beasts' => $this->getBeasts()
+        ];
+    }
+
+    public function argChooseBuildSection(): array {
+        $currentPlayerID = (int) $this->getCurrentPlayerId();
+
+        $pending_read = "
+            SELECT card_id, card_type_arg AS animal_id
+            FROM animal_deck
+            WHERE card_location IS 'hand'
+            AND card_location_arg IS '$currentPlayerID'
+            AND card_pending_action IS 'build'
+        ";
+        $pending_cards = $this->getObjectListFromDB($player_read);
+        return [
+            'animalToBuild' => $pending_cards[0]
         ];
     }
 
@@ -340,14 +358,13 @@ class Game extends \Table {
         }
     }
 
-    /**
-     * 1: speed-behavior
-     * 2: threat
-     * 3: defense
-     */
-    function actBuildCardFromHand(string $selectedAnimalID) {
-        // framework already determined if the current player is an active player
+    function actSelectBuild() {
+        $currentPlayerID = $this->getCurrentPlayerId();
+        // $currentPlayerHand = $this->animalCards->getCardsInLocation('hand', $currentPlayerID);
+        $this->gamestate->nextPrivateState($currentPlayerID, 'chooseBuildAnimal');
+    }
 
+    function actChooseBuildAnimal(string $selectedAnimalID) {
         $this->dump('$selectedAnimalID', $selectedAnimalID);
 
         // ensure selected animal exists in the current player's hand
@@ -357,21 +374,25 @@ class Game extends \Table {
         // $this->dump('$selectedCharacterID', $selectedCharacterID);
         $this->dump('$currentPlayerHand', $currentPlayerHand);
 
-        $handAnimalIDs = array_map(
-            function ($c) { return $c['type_arg']; },
-            $currentPlayerHand
+        $selectedCard = array_filter(
+            $currentPlayerHand,
+            function ($c) use ($selectedAnimalID) { return $c['type_arg'] === $selectedAnimalID; }
         );
 
-        $this->dump('$handAnimalIDs', $handAnimalIDs);
-
-        if (in_array($selectedAnimalID, $handAnimalIDs)) {
+        if (count($selectedCard)) {
             // valid move
 
-            // mark DB with selection somehow?? or use front end state?
-
-            // update DB for this player to indicate which location & location-arg for this card
+            // mark card DB row with pending build action
+            $selectedCardID = $selectedCard[0]['id'];
+            $animal_write = "UPDATE animal_deck SET card_pending_action='build' WHERE (card_id) IN ('$selectedCardID');";
+            $this->DbQuery($animal_write);
 
             // notify current player
+            $animals = $this->getAnimals();
+            $animal = array_filter($animals, function ($a) use ($selectedAnimalID) { return $a['id'] === $selectedAnimalID; });
+            $this->notify->player($currentPlayerID, 'chooseBuildAnimal', clienttranslate('You choose to build ${animalName} from your hand'), [
+                'animalName' => $animal[0]['display_name']
+            ]);
 
             // function actPlayKeep($cardId) {
             //    $this->checkAction('actPlayKeep');
@@ -380,38 +401,33 @@ class Game extends \Table {
             //    $this->gamestate->setPlayerNonMultiactive($player_id, 'next'); // deactivate player; if none left, transition to 'next' state
             // }
 
-            // transition player to "choose section" state
-            $this->gamestate->nextState('chooseSectionToBuild');
-
-        //     // update player table to have character ID
-        //     $player_write = "UPDATE player SET selected_character_id='$selectedCharacterID' WHERE (player_id) IN ('$playerID');";
-        //     $this->DbQuery($player_write);
-
-        //     // notify
-        //     $selectedChar = array_filter(
-        //         $unassignedCharacters,
-        //         function ($c) use ($selectedCharacterID) { return $c['id'] === $selectedCharacterID; }
-        //     );
-
-        //     $this->dump('$selectedChar', $selectedChar);
-
-        //     $this->notify->all('selectCharacter', clienttranslate('${player_name} chooses ${character_display_name}'), array(
-        //         'player_name'  => $this->getActivePlayerName(),
-        //         'player_id'    => $playerID,
-        //         'character_id' => $selectedCharacterID,
-        //         'character_display_name' => array_shift($selectedChar)['display_name']
-        //     ));
-
-        //     // $this->notify->all("turnOverDiscs", '', array(
-        //     //     'player_id' => $playerID,
-        //     //     'turnedOver' => $turnedOverDiscs
-        //     // ));
-
-        //     $this->gamestate->nextState('characterSelected');
+            // transition player private state
+            $this->gamestate->nextPrivateState($currentPlayerID, 'chooseBuildSection');
         } else {
             throw new \BgaSystemException("Impossible move");
         }
     }
+
+    /**
+     * 1: speed-behavior
+     * 2: threat
+     * 3: defense
+     */
+    function actChooseBuildSection(string $selectedCardID, string $selectedSectionID) {
+        $this->dump('$selectedSectionID', $selectedSectionID);
+
+        $currentPlayerID = $this->getCurrentPlayerId();
+        $playerBeastLocation = "beast_$currentPlayerID";
+
+        // move any card in the existing location to discard
+
+        // move selected card from hand into {player-beast + section} location
+
+        // transition player back to player-turn private state
+        $this->gamestate->nextPrivateState($currentPlayerID, 'chooseBuildSection');
+    }
+
+
 
     // public function actPass(): void
         // {
@@ -429,115 +445,115 @@ class Game extends \Table {
     // }
 
     // return array of disc coords. that would be turned over if a new disc placed at (x, y) location for given player
-    public function getTurnedOverDiscs($board, $x, $y, $playerID): array {
-        $MOVE_DIRECTIONS = [
-            [-1, 0],
-            [-1, 1],
-            [0, 1],
-            [1, 1],
-            [1, 0],
-            [1, -1],
-            [0, -1],
-            [-1, -1]
-        ];
+    // public function getTurnedOverDiscs($board, $x, $y, $playerID): array {
+        //     $MOVE_DIRECTIONS = [
+        //         [-1, 0],
+        //         [-1, 1],
+        //         [0, 1],
+        //         [1, 1],
+        //         [1, 0],
+        //         [1, -1],
+        //         [0, -1],
+        //         [-1, -1]
+        //     ];
 
-        // does this space have a disc already?
-        if (
-            array_key_exists($x, $board) &&
-            array_key_exists($y, $board[$x]) &&
-            $board[$x][$y]
-        ) {
-            return [];
-        }
+        //     // does this space have a disc already?
+        //     if (
+        //         array_key_exists($x, $board) &&
+        //         array_key_exists($y, $board[$x]) &&
+        //         $board[$x][$y]
+        //     ) {
+        //         return [];
+        //     }
 
-        $results = [];
+        //     $results = [];
 
-        // count the number of opposing discs between this disc and the next allied disc (check all 8 directions)
-        foreach ($MOVE_DIRECTIONS as $vector) {
-            $xDelta = $vector[0];
-            $yDelta = $vector[1];
+        //     // count the number of opposing discs between this disc and the next allied disc (check all 8 directions)
+        //     foreach ($MOVE_DIRECTIONS as $vector) {
+        //         $xDelta = $vector[0];
+        //         $yDelta = $vector[1];
 
-            $flipped = [];
-            $foundAllied = false;
+        //         $flipped = [];
+        //         $foundAllied = false;
 
-            if ($yDelta == 0) {
-                // single loop for $yDelta=0 edge case
-                for ($i = $x + $xDelta; 1 <= $i && $i <= 8; $i += $xDelta) {
-                    // try
-                    $playerIDToCheck = (
-                        array_key_exists($i, $board) && array_key_exists($y, $board[$i])
-                            ? $board[$i][$y]
-                            : null
-                    );
-                    if ($playerIDToCheck) {
-                        if ($playerIDToCheck == $playerID) {
-                            $foundAllied = true;
-                            break;
-                        } else {
-                            $flipped[] = ["x" => $i, "y" => $y];
-                        }
-                    } else {
-                        // no piece on this square - invalid move
-                        break;
-                    }
-                    // catch
-                }
-            } else if ($xDelta == 0) {
-                for ($j = $y + $yDelta; 1 <= $j && $j <= 8; $j += $yDelta) {
-                    // try
-                    $playerIDToCheck = (
-                        array_key_exists($x, $board) && array_key_exists($j, $board[$x])
-                            ? $board[$x][$j]
-                            : null
-                    );
-                    if ($playerIDToCheck) {
-                        if ($playerIDToCheck == $playerID) {
-                            $foundAllied = true;
-                            break;
-                        } else {
-                            $flipped[] = ["x" => $x, "y" => $j];
-                        }
-                    } else {
-                        // no piece on this square - invalid move
-                        break;
-                    }
-                    // catch
-                }
-            } else {
-                $i = $x + $xDelta;
-                $j = $y + $yDelta;
-                do {
-                    // try
-                    $playerIDToCheck = (
-                        array_key_exists($i, $board) && array_key_exists($j, $board[$i])
-                            ? $board[$i][$j]
-                            : null
-                    );
-                    if ($playerIDToCheck) {
-                        if ($playerIDToCheck == $playerID) {
-                            $foundAllied = true;
-                            break;
-                        } else {
-                            $flipped[] = ["x" => $i, "y" => $j];
-                        }
-                    } else {
-                        // no piece on this square - invalid move
-                        break;
-                    }
-                    // catch
+        //         if ($yDelta == 0) {
+        //             // single loop for $yDelta=0 edge case
+        //             for ($i = $x + $xDelta; 1 <= $i && $i <= 8; $i += $xDelta) {
+        //                 // try
+        //                 $playerIDToCheck = (
+        //                     array_key_exists($i, $board) && array_key_exists($y, $board[$i])
+        //                         ? $board[$i][$y]
+        //                         : null
+        //                 );
+        //                 if ($playerIDToCheck) {
+        //                     if ($playerIDToCheck == $playerID) {
+        //                         $foundAllied = true;
+        //                         break;
+        //                     } else {
+        //                         $flipped[] = ["x" => $i, "y" => $y];
+        //                     }
+        //                 } else {
+        //                     // no piece on this square - invalid move
+        //                     break;
+        //                 }
+        //                 // catch
+        //             }
+        //         } else if ($xDelta == 0) {
+        //             for ($j = $y + $yDelta; 1 <= $j && $j <= 8; $j += $yDelta) {
+        //                 // try
+        //                 $playerIDToCheck = (
+        //                     array_key_exists($x, $board) && array_key_exists($j, $board[$x])
+        //                         ? $board[$x][$j]
+        //                         : null
+        //                 );
+        //                 if ($playerIDToCheck) {
+        //                     if ($playerIDToCheck == $playerID) {
+        //                         $foundAllied = true;
+        //                         break;
+        //                     } else {
+        //                         $flipped[] = ["x" => $x, "y" => $j];
+        //                     }
+        //                 } else {
+        //                     // no piece on this square - invalid move
+        //                     break;
+        //                 }
+        //                 // catch
+        //             }
+        //         } else {
+        //             $i = $x + $xDelta;
+        //             $j = $y + $yDelta;
+        //             do {
+        //                 // try
+        //                 $playerIDToCheck = (
+        //                     array_key_exists($i, $board) && array_key_exists($j, $board[$i])
+        //                         ? $board[$i][$j]
+        //                         : null
+        //                 );
+        //                 if ($playerIDToCheck) {
+        //                     if ($playerIDToCheck == $playerID) {
+        //                         $foundAllied = true;
+        //                         break;
+        //                     } else {
+        //                         $flipped[] = ["x" => $i, "y" => $j];
+        //                     }
+        //                 } else {
+        //                     // no piece on this square - invalid move
+        //                     break;
+        //                 }
+        //                 // catch
 
-                    $i += $xDelta;
-                    $j += $yDelta;
-                } while ((1 <= $i && $i <= 8 && 1 <= $j && $j <= 8) && !$foundAllied);
-            }
+        //                 $i += $xDelta;
+        //                 $j += $yDelta;
+        //             } while ((1 <= $i && $i <= 8 && 1 <= $j && $j <= 8) && !$foundAllied);
+        //         }
 
-            if ($foundAllied && count($flipped) > 0) {
-                $results = array_merge($results, $flipped);
-            }
-        }
+        //         if ($foundAllied && count($flipped) > 0) {
+        //             $results = array_merge($results, $flipped);
+        //         }
+        //     }
 
-        return $results;
-    }
+        //     return $results;
+    // }
 
 
     /**
@@ -611,21 +627,28 @@ class Game extends \Table {
     function stDealCards(): void {
         // shuffle the Animal Deck, and deal 6 Animal Cards to each player
         $this->animalCards->shuffle('deck');
-        $qty = 1;
+        $qty = 6;
+
+        $allAnimals = $this->getAnimals();
 
         $players = $this->getPlayers();
         foreach ($players as $player_id => $player) {
-            $this->animalCards->pickCards($qty, 'deck', $player_id);
+            $newCards = $this->animalCards->pickCards($qty, 'deck', $player_id);
 
-            // Notify player about their cards
-            // $this->notify->all($player_id, 'cardsDrawn', '', ['qty' => 1]);
+            // Notify player about specific new cards
+            $newAnimalIDs = array_map(function ($c) { return $c['type_arg']; }, $newCards);
+            $newAnimals = array_filter($allAnimals, function ($a) use ($newAnimalIDs) { return in_array($a['id'], $newAnimalIDs); });
+            $this->notify->player($player_id, 'newHand', clienttranslate('You draw ${newCardNames} from the deck'), [
+                'newCardNames' => implode(', ', array_map(function ($a) { return '<strong>' . $a['display_name'] . '</strong>'; }, $newAnimals)),
+                'newCards' => $newCards
+            ]);
 
-            // notify all players about new cards drawn
+            // Notify all players qty of new cards drawn
             $player_name = $player["player_name"];
             $this->notify->all('cardsDrawn', clienttranslate('${player_name} draws ${qty} Animal Card' . ($qty > 1 ? 's' : '') . ' from the deck'), array(
                 "player_id" => $player_id,
                 "player_name" => $player_name,
-                "qty" => 1
+                "qty" => $qty
             ));
         }
 
@@ -666,9 +689,23 @@ class Game extends \Table {
         $this->gamestate->nextState('biomeActivated');
     }
 
-    function stBuildPhase(): void {
+    function stBeginBuildPhase(): void {
         $this->gamestate->setAllPlayersMultiactive();
+        $this->gamestate->initializePrivateStateForAllActivePlayers();
     }
+
+    function stPlayerBuildStep(): void {
+        $currentPlayerID = $this->getCurrentPlayerId();
+        $currentPlayerHand = $this->animalCards->getCardsInLocation('hand', $currentPlayerID);
+        if (!count($currentPlayerHand)) {
+            // player's hand is empty - they are finished with build step (for now)
+           $this->gamestate->setPlayerNonMultiactive($currentPlayerID, 'allBeastsBuilt'); // deactivate player; if none left, transition to 'next' state
+        }
+    }
+
+    // function stChooseBuildAnimal(): void {
+
+    // }
 
     /**
      * Migrate database.
@@ -775,7 +812,7 @@ class Game extends \Table {
             "SELECT `player_id` `id`, `player_score` `score`, `player_color` `color`, `selected_character_id` `selected_character_id`, `player_name` `player_name` FROM `player`"
         );
 
-        $this->dump('$players: ', $players);
+        // $this->dump('$players: ', $players);
 
         return $players;
     }
@@ -785,7 +822,7 @@ class Game extends \Table {
             "SELECT `id`, `display_name`, `family_id` FROM `animal`"
         );
 
-        $this->dump('$animals: ', $animals);
+        // $this->dump('$animals: ', $animals);
 
         return $animals;
     }
@@ -805,7 +842,7 @@ class Game extends \Table {
             "SELECT `id`, `display_name` FROM `family`"
         );
 
-        $this->dump('$families: ', $families);
+        // $this->dump('$families: ', $families);
 
         return $families;
     }
@@ -824,9 +861,12 @@ class Game extends \Table {
         // WARNING: We must only return information visible by the current player.
         $current_player_id = (int) $this->getCurrentPlayerId();
 
+        $result["currentPlayerID"] = $current_player_id;
+
         $result["players"] = $this->getPlayers();
         $result["characters"] = $this->getCharacters();
         $result["animals"] = $this->getAnimals();
+        $result["families"] = $this->getFamilies();
         // $result["biomes"] = $this->getBiomes();
 
         // $this->dump('[getAllDatas] $this->animalCards: ', $this->animalCards);
@@ -878,8 +918,7 @@ class Game extends \Table {
      * @return void
      * @throws feException if the zombie mode is not supported at this game state.
      */
-    protected function zombieTurn(array $state, int $active_player): void
-    {
+    protected function zombieTurn(array $state, int $active_player): void {
         $state_name = $state["name"];
 
         if ($state["type"] === "activeplayer") {
